@@ -13,9 +13,10 @@
 
 ### ampache-handshake.lua
 `require` this in your lua scripts (see ampache-handshake-print.lua for example usage).<br>
+
 Exposed functions are:<br>
-- `handshake` : returns the full handshake json. serverUrl, username and password are the require parameters
-- `getAuthToken` : returns the auth token used for all the authorized calls. serverUrl, username and password are the require parameters
+- `handshake` : returns the full handshake json. `serverUrl`, `username` and `password` are the require parameters
+- `getAuthToken` : returns the auth token used for all the authorized calls. `serverUrl`, `username` and `password` are the require parameters
 
 ### ampache-handshake-print.lua
 utility script to print handshake data.<br>
