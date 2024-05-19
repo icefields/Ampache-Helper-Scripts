@@ -17,7 +17,7 @@
 lua ampache-handshake-print.lua -a http://192.168.61.10 youruser youtpassword
 
 # print the playlists response using the lua script to fetch the token in one line
-curl "http://192.168.61.10/public/server//json.server.php?action=playlists&limit=100&filter=&exact=0&offset=0&hide_search=1&show_dupes=1&auth=$(lua ampache-handshake-print.lua -ahttp://192.168.61.10 test-user testtest)"
+curl "http://192.168.61.10/public/server/json.server.php?action=playlists&limit=100&filter=&exact=0&offset=0&hide_search=1&show_dupes=1&auth=$(lua ampache-handshake-print.lua -a http://192.168.61.10 test-user testtest)"
 
 # save in a variable and reuse for multiple calls
 #BASH
