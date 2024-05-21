@@ -50,13 +50,15 @@ local function handshake(serverUrl, username, password)
     local auth = calculateSha256(timestamp .. passwordSha256)
 
     local url = string.format(
-        "%s/public/server/json.server.php?action=handshake&timestamp=%s&auth=%s&user=%s",
+        "%s/server/json.server.php?action=handshake&timestamp=%s&auth=%s&user=%s",
         serverUrl,
         timestamp,
         auth,
         username
     )
-
+    print(password)
+    print()
+    print(url)
     return str2Json(fetchJson(url))
 end
 
