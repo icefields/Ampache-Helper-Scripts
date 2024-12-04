@@ -56,9 +56,9 @@ local function handshake(serverUrl, username, password)
         auth,
         username
     )
-    print(password)
-    print()
-    print(url)
+    -- print(password)
+    -- print()
+    -- print(url)
     return str2Json(fetchJson(url))
 end
 
