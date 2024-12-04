@@ -13,7 +13,7 @@
 
 ### Quick start examples
 
-### <b> Main Script </b> ampache-handshake.lua
+### <b> Main Script </b> arts-collage.lua
 Generates a collage of images from the stat passed as a parameter.<br>
 Stats can be `newest, highest, frequent, recent, forgotten, flagged, random`
 ```
