@@ -11,7 +11,21 @@
 
 ## Helper scripts for Ampache
 
-### Quick start example
+### Quick start examples
+
+### <b> Main Script </b> ampache-handshake.lua
+Generates a collage of images from the stat passed as a parameter.<br>
+Stats can be `newest, highest, frequent, recent, forgotten, flagged, random`
+```
+lua arts-collage.lua -s <size> -f <stat> <serverAddress> <username> <password>
+```
+```
+size: how many cover arts in the collage? Note, to make a squared image use: 4, 9, 16, 25, 32, ...
+stat: can be newest, highest, frequent, recent, forgotten, flagged, random
+serverAddress: your ampache instance address
+```
+
+### Other quick examples:
 ```
 # just print the auth token
 lua ampache-handshake-print.lua -a http://192.168.61.10 youruser yourpassword
