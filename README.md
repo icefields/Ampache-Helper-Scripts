@@ -32,6 +32,25 @@ stat: can be newest, highest, frequent, recent, forgotten, flagged, random
 serverAddress: your ampache instance address
 ```
 
+### Print your stats (no image output)
+Usage: 
+```
+lua stats.lua <server_url> <username> <password> [OPTIONS]
+```
+ARGUMENTS:
+```
+Required arguments:
+  <server_url>   The URL of the Ampache server
+  <username>     The username for authentication
+  <password>     The password for authentication
+
+Optional arguments:
+  -l <limit>     Limit the number of items to retrieve (default: 10)
+  -t <type>      Specify the type of items to retrieve (valid values: album, song, artist, video, playlist, podcast, podcast_episode; default: album)
+  -f <filter>    Specify the filter for the items (valid values: newest, highest, frequent, recent, forgotten, flagged, random; default: newest)
+  -h             Show this help message
+```
+
 ### Other quick examples:
 ```
 # just print the auth token
