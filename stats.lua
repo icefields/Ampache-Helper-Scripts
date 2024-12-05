@@ -23,7 +23,7 @@ end
 -- Function to print the help guide
 local function printHelp()
     print([[
-Usage: lua recent-albums2.lua <server_url> <username> <password> [OPTIONS]
+Usage: lua stats.lua <server_url> <username> <password> [OPTIONS]
 
 Required arguments:
   <server_url>   The URL of the Ampache server
