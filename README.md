@@ -10,6 +10,13 @@
 ```
 
 ## Helper scripts for Ampache
+Lua Dependencies (using LuaRocks):
+```
+luarocks install luafilesystem
+luarocks install lua-cjson
+luarocks install dkjson
+# Some users might also need to install lua-socket
+```
 
 ### Quick start examples
 
