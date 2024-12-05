@@ -48,6 +48,7 @@ Optional arguments:
   -l <limit>     Limit the number of items to retrieve (default: 10)
   -t <type>      Specify the type of items to retrieve (valid values: album, song, artist, video, playlist, podcast, podcast_episode; default: album)
   -f <filter>    Specify the filter for the items (valid values: newest, highest, frequent, recent, forgotten, flagged, random; default: newest)
+  -j		     Prints the original json from the network response, when this is passed, all other optional args are ignored
   -h             Show this help message
 ```
 
