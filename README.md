@@ -9,7 +9,7 @@
                                                                  
 ```
 
-## Helper scripts for Ampache
+# Helper scripts for Ampache
 Lua Dependencies (using LuaRocks):
 ```
 luarocks install luafilesystem
@@ -18,7 +18,7 @@ luarocks install dkjson
 # Some users might also need to install lua-socket
 ```
 
-### Quick start examples
+## Quick start examples
 
 ### <b> Main Script </b> arts-collage.lua
 Generates a collage of images from the stat passed as a parameter.<br>
