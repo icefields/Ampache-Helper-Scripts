@@ -57,6 +57,42 @@ Optional arguments:
   -h             Show this help message
 ```
 
+Sample output:
+```
+name: Dear Gods (id: 2519)
+artist: Yellfire (id: 727)
+time: 2561.0
+year: 2024.0
+songcount: 11.0
+diskcount: 1.0
+genre: Metal
+art: http://192.168.1.231/image.php?object_id=2519&object_type=album
+flag: true
+mbid: 7f73f74f-0e9c-4665-8b9f-9f10fd2e1468
+
+name: Quest for the Secret Fire (id: 2517)
+artist: Moss Upon the Skull (id: 725)
+time: 2283.0
+year: 2024.0
+songcount: 8.0
+diskcount: 1.0
+genre: Progressive Death Metal
+art: http://192.168.1.231/image.php?object_id=2517&object_type=album
+flag: false
+mbid: 7bd0628c-c2c4-437a-b63b-e3f31756c9a1
+
+name: The Duality of Decapitation and Wisdom (id: 2516)
+artist: Veilburner (id: 724)
+time: 2940.0
+year: 2024.0
+songcount: 7.0
+diskcount: 1.0
+genre: Death Metal
+art: http://192.168.1.231/image.php?object_id=2516&object_type=album
+flag: false
+mbid: 20a9d15f-9c08-4c1e-b9f9-2ba95864d3e5
+```
+
 ### Other quick examples:
 ```
 # just print the auth token
