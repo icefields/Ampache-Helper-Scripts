@@ -37,6 +37,10 @@ Example of generated images:
 | --- | --- | --- |
 | ![tiled_image-16-readme](tiled_image-16-readme.jpg) | ![tiled_image-9-readme](tiled_image-9-readme.jpg) | ![tiled_image-25-readme](tiled_image-25-readme.jpg) |
 
+<br>
+
+---
+
 ### Print your stats (no image output)
 Usage: 
 ```
@@ -106,6 +110,10 @@ art: http://192.168.16.141/image.php?object_id=22&object_type=album&name=art.jpg
 flag: false
 mbid: 2bbb6662-0db0-4c09-abc8-f89e3ee25caa
 ```
+
+<br>
+
+---
 
 ### Other quick examples:
 ```
