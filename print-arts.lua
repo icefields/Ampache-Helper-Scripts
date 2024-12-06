@@ -50,7 +50,7 @@ local function artUrls(url, quote)
     -- Iterate over the array and collect the "art" values
     local arts = {}
     for _, item in ipairs(data.album) do
-        if type(item.art) == "string" then
+        if type(item.art) == "string" and item.has_art == true then
             if quote then
                 table.insert(arts, '"' .. item.art .. '"')
             else
