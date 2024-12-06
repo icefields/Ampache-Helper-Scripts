@@ -32,6 +32,11 @@ stat: can be newest, highest, frequent, recent, forgotten, flagged, random
 serverAddress: your ampache instance address
 ```
 
+Example of generated images:
+| 16 covers | 9 covers | 25 covers |
+| --- | --- | --- |
+| ![tiled_image-16-readme](https://github.com/icefields/Ampache-Helper-Scripts/blob/main/tiled_image-16-readme.jpg?raw=true) | ![tiled_image-9-readme](https://github.com/icefields/Ampache-Helper-Scripts/blob/main/tiled_image-9-readme.jpg?raw=true) | ![tiled_image-25-readme](https://github.com/icefields/Ampache-Helper-Scripts/blob/main/tiled_image-25-readme.jpg?raw=true) |
+
 ### Print your stats (no image output)
 Usage: 
 ```
