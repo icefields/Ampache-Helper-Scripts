@@ -30,7 +30,7 @@ end
 -- Function to print only if valid
 local function safePrint(label, value)
     if isValid(value) then
-        print(string.format("%s: %s", label, tostring(value)))
+        print(string.format("%s %s", label, tostring(value)))
     end
 end
 
