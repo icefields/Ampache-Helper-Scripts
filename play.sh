@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#!/bin/bash
+WORKING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 selectsong() {
     input_data=$(cat)
     # oneline=$(awk 'BEGIN {RS=""; FS="\n"} {print $1 "\t" $2 "\n"}')
@@ -46,5 +49,7 @@ else
   IFS=$'\n' read -d '' -r serverurl username password < $HOME/.config/ampache_credentials 
 fi
 
-song=$(echo "" | showmenu)
-lua songs.lua $serverurl $username $password -f "$song" | selectsong | playsong
+song=$(cat songs_cache | awk 'BEGIN {RS=""; FS="\n"} {print $1}' | showmenu)
+songsResult=$(lua "$WORKING_DIR/songs.lua" $serverurl $username $password -f "$song")
+# FIX CACHE printf "%s" "$songsResult" >> songs_cache 
+printf "%s" "$songsResult" |  selectsong | playsong

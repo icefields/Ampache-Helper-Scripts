@@ -12,6 +12,13 @@
 -- -------- https://github.com/icefields --------- --
 -----------------------------------------------------
 
+-- setting the local path so the script can find dependencies
+local script_path = debug.getinfo(1, "S").source:match("(.*/)") or ""
+script_path = script_path:sub(2)  -- Removes the '@' at the beginning if it exists
+local script_dir = script_path:match("(.+)/")  -- Get everything before the last '/'
+script_dir = script_dir or ""  -- If no directory, make it an empty string
+package.path = script_dir .. "/?.lua;" .. package.path
+
 local handshake = require("ampache-handshake")
 local http = require("socket.http")
 local ltn12 = require("ltn12")  -- For handling response body
