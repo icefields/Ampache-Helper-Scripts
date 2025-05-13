@@ -27,7 +27,8 @@ end
 
 function makeRequest(server_url, action, username, password, limit, filter_value)
     local authToken = handshake.getAuthToken(server_url, username, password)
-    local url = getUrl(server_url, "albums", authToken, username, password, limit, filter_value)
+    local url = getUrl(server_url, action, authToken, username, password, limit, filter_value)
+    -- print(url)
     local response_body = {}
     local res, code, response_headers, status = http.request{
         url = url,
