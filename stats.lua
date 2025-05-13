@@ -20,6 +20,7 @@ local limit = 10  -- Default limit
 local type_value = "album"  -- Default type
 local filter_value = "newest"  -- Default filter
 local is_json_output = false
+local printUrl = false
 
 -- Function to print the help guide
 local function printHelp()
@@ -37,6 +38,7 @@ Optional arguments:
   -f <filter>    Specify the filter for the items (valid values: newest, highest, frequent, recent, forgotten, flagged, random; default: newest)
   -u <username>  Specify a username to get the stats for
   -j		     Prints the original json from the network response, when this is passed, all other optional args are ignored
+  -d             Print the request url, useful for debugging
   -h             Show this help message
 ]])
 end
@@ -99,6 +101,8 @@ for i = 4, #arg do
         i = i + 1  -- Skip the next argument
     elseif arg_val == "-j" then
 	    is_json_output = true
+    elseif arg_val == "-d" then
+        printUrl = true
     elseif arg_val == "-u" then 
         usernameData = arg[i + 1] or username
         i = i + 1  -- Skip the next argument
@@ -115,7 +119,7 @@ local res, code, response_headers, status, json_response, data =
         limit = limit,
         filterValue = filter_value,
         usernameData = usernameData
-    })
+    }, printUrl)
 
 -- Check if the request was successful
 if code == 200 then

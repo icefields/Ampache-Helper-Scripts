@@ -47,7 +47,6 @@ local function getUrl(args)
 end
 
 local function makeRequestFromUrl(url)
-    print(url)
     local response_body = {}
     local res, code, response_headers, status = http.request{
         url = url,
@@ -64,10 +63,13 @@ local function makeRequestFromUrl(url)
     return res, code, response_headers, status, json_response, data
 end
 
-function makeRequest(args)
+function makeRequest(args, printUrl)
     local authToken = handshake.getAuthToken(args.serverUrl, args.username, args.password)
     args.authToken = authToken
     local url = getUrl(args)
+    if printUrl == true then
+        print(url)
+    end
     return makeRequestFromUrl(url)
 end
 

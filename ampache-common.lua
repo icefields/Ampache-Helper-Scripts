@@ -28,10 +28,11 @@ end
 
 function parseArgs(arg)
     local limit = 100  -- Default limit
-    local filter_value = ""  -- Default filter
-    local is_json_output = false
-
-    local server_url = arg[1]
+    local filterValue = ""  -- Default filter
+    local isJsonOutput = false
+    local isPrintUrl = false
+    
+    local serverUrl = arg[1]
     local username = arg[2]
     local password = arg[3]
 
@@ -44,14 +45,16 @@ function parseArgs(arg)
             i = i + 1  -- Skip the next argument
         elseif arg_val == "-f" then
             -- Filter argument
-            filter_value = arg[i + 1] or ""
+            filterValue = arg[i + 1] or ""
             i = i + 1  -- Skip the next argument
         elseif arg_val == "-j" then
-	        is_json_output = true
+	        isJsonOutput = true
+        elseif arg_val == "-d" then
+	        isPrintUrl = true
         end
     end
 
-    return server_url, username, password, limit, filter_value, is_json_output
+    return serverUrl, username, password, limit, filterValue, isJsonOutput, isPrintUrl
 end
 
 -- Print the help guide
@@ -69,6 +72,7 @@ Optional arguments:
   -f <filter>    Specify the filter for the items
   -j		     Prints the original json from the network response, when this is passed, all other optional args are ignored
   -h             Show this help message
+  -d             Print the request url, useful for debugging
 ]])
 end
 

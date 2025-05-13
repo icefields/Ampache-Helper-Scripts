@@ -27,7 +27,7 @@ if (ampache.shouldPrintHelp()) then
     return
 end
 
-local server_url, username, password, limit, filter_value, is_json_output = 
+local server_url, username, password, limit, filter_value, is_json_output, isPrintUrl = 
     ampache.parseArgs(arg)
 
 local res, code, response_headers, status, json_response, data = 
@@ -38,7 +38,7 @@ local res, code, response_headers, status, json_response, data =
         password = password,
         limit = limit,
         filterValue = filter_value
-    })
+    }, isPrintUrl)
 
 if code == 200 then
     -- if the -j option is passed, just print the json file
