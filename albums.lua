@@ -139,7 +139,7 @@ if code == 200 then
 
     -- Iterate over the "album" array (or type array based on the passed type) and print the desired information
     for _, item in ipairs(data["album"]) do
-        safePrint(item.artist.name, item.name)
+        safePrint(item.artist.name .. " -", item.name)
         safePrint("id:", item.id)
         safePrint("Time:", item.time)
         safePrint("Year:", item.year)
