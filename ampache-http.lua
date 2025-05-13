@@ -25,9 +25,7 @@ function getUrl(server_url, action, authToken, username, password, limit, filter
     )
 end
 
-function makeRequest(server_url, action, username, password, limit, filter_value)
-    local authToken = handshake.getAuthToken(server_url, username, password)
-    local url = getUrl(server_url, action, authToken, username, password, limit, filter_value)
+function makeRequestFromUrl(url)
     -- print(url)
     local response_body = {}
     local res, code, response_headers, status = http.request{
@@ -45,7 +43,14 @@ function makeRequest(server_url, action, username, password, limit, filter_value
     return res, code, response_headers, status, json_response, data
 end
 
+function makeRequest(server_url, action, username, password, limit, filter_value)
+    local authToken = handshake.getAuthToken(server_url, username, password)
+    local url = getUrl(server_url, action, authToken, username, password, limit, filter_value)
+    return makeRequestFromUrl(url)
+end
+
 return {
-    makeRequest = makeRequest
+    makeRequest = makeRequest,
+    makeRequestFromUrl = makeRequestFromUrl
 }
 

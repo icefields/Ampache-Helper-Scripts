@@ -12,28 +12,15 @@
 -- -------- https://github.com/icefields --------- --
 -----------------------------------------------------
 
+local ampache = require("ampache-common")
 local handshake = require("ampache-handshake")
-local http = require("socket.http")
-local ltn12 = require("ltn12")  -- For handling response body
-local cjson = require("cjson")  -- For decoding JSON
+local ampacheHttp = require("ampache-http")
 
 -- Default values for optional arguments
 local limit = 10  -- Default limit
 local type_value = "album"  -- Default type
 local filter_value = "newest"  -- Default filter
 local is_json_output = false
-
--- Function to check if a value is valid (not nil, empty, or 'null')
-local function isValid(value)
-    return value ~= nil and value ~= '' and value ~= 'null' and tostring(value) ~= 'userdata: (nil)'
-end
-
--- Function to print only if valid
-local function safePrint(label, value)
-    if isValid(value) then
-        print(string.format("%s: %s", label, tostring(value)))
-    end
-end
 
 -- Function to print the help guide
 local function printHelp()
@@ -54,17 +41,13 @@ Optional arguments:
 ]])
 end
 
--- Check for the help flag (-h)
-if arg[1] == "-h" then
-    printHelp()
-    return  -- Exit the script after printing help
+local function safePrint(title, value)
+    ampache.safePrint(title, value)
 end
 
--- Ensure that the server_url, username, and password are provided
-if not arg[1] or not arg[2] or not arg[3] then
-    print("Error: Missing required arguments (server_url, username, password). Use -h for help.")
+if (ampache.shouldPrintHelp()) then
     printHelp()
-    return  -- Exit the script if required arguments are missing
+    return
 end
 
 local server_url = arg[1]
@@ -117,38 +100,23 @@ for i = 4, #arg do
     end
 end
 
--- Get the auth token
 local authToken = handshake.getAuthToken(server_url, username, password)
-
--- Prepare the URL with the authToken, limit, type, and filter
 local url = string.format(
     "%s/server/json.server.php?action=stats&limit=%d&filter=%s&exact=0&offset=0&type=%s&show_dupes=1&auth=%s",
     server_url, limit, filter_value, type_value, authToken
 )
 
--- Perform the HTTP GET request
-local response_body = {}
-local res, code, response_headers, status = http.request{
-    url = url,
-    sink = ltn12.sink.table(response_body)  -- Capture the response into the table
-}
+local res, code, response_headers, status, json_response, data =
+    ampacheHttp.makeRequestFromUrl(url)
 
 -- Check if the request was successful
 if code == 200 then
-    
-    -- Join the response body into a string
-    local json_response = table.concat(response_body)
-    
     -- if the -j option is passed, just print the json file
     if is_json_output == true then
     	print(json_response)
-	return
+	    return
     end
 
-    -- Decode the JSON response
-    local data = cjson.decode(json_response)
-
-    -- Iterate over the "album" array (or type array based on the passed type) and print the desired information
     for _, item in ipairs(data[type_value]) do
         -- Print name if valid
         safePrint("name", string.format("%s (id: %s)", item.name, item.id))
