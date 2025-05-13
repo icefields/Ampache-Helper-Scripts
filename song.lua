@@ -41,29 +41,19 @@ local res, code, response_headers, status, json_response, item = ampacheHttp.mak
 
 -- Check if the request was successful
 if code == 200 then
-    
     -- if the -j option is passed, just print the json file
     if is_json_output == true then
     	print(json_response)
 	    return
     end
-        -- Print name if valid
-        -- safePrint("title", string.format("%s (id: %s)", item.title, item.id))
-        ampache.safePrint(item.artist.name, item.title)
-
-        if item.url then
-            print(item.url)
-        end
-
-        if item.album.name then
-            print(item.album.name)
-        end
-
-        if item.art and item.has_art then
-            print(item.art)
-        end
-
-        print("\n")  -- Add a blank line between items
+    
+    ampache.safePrint(item.artist.name .. " -", item.title)
+    ampache.safePrint("Song Url:", item.url)
+    ampache.safePrint("Album:"item.album.name)
+    if item.art and item.has_art then
+        ampache.safePrint("art:", item.art)
+    end
+    print("\n")  -- Add a blank line between items
 else
     -- Print an error message if the request fails
     print("HTTP request failed with status: " .. status)
