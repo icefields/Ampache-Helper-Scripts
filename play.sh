@@ -1,6 +1,5 @@
 #!/bin/bash
 
-#!/bin/bash
 WORKING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 selectsong() {
@@ -12,8 +11,6 @@ selectsong() {
         while read -r selection; do
             # Extract the URL part from the selection (after the tab)
             url=$(printf "%s" "$input_data" | grep -A 1 "$selection" | tail -n 1)
-
-            # Output only the URL
             echo "$url"
         done
 }
