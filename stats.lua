@@ -35,6 +35,7 @@ Optional arguments:
   -l <limit>     Limit the number of items to retrieve (default: 10)
   -t <type>      Specify the type of items to retrieve (valid values: album, song, artist, video, playlist, podcast, podcast_episode; default: album)
   -f <filter>    Specify the filter for the items (valid values: newest, highest, frequent, recent, forgotten, flagged, random; default: newest)
+  -u <username>  Specify a username to get the stats for
   -j		     Prints the original json from the network response, when this is passed, all other optional args are ignored
   -h             Show this help message
 ]])
@@ -52,6 +53,8 @@ end
 local server_url = arg[1]
 local username = arg[2]
 local password = arg[3]
+
+local usernameData = username
 
 -- Parse the command-line arguments
 for i = 4, #arg do
@@ -95,7 +98,10 @@ for i = 4, #arg do
         end
         i = i + 1  -- Skip the next argument
     elseif arg_val == "-j" then
-	is_json_output = true
+	    is_json_output = true
+    elseif arg_val == "-u" then 
+        usernameData = arg[i + 1] or username
+        i = i + 1  -- Skip the next argument
     end
 end
 
@@ -107,7 +113,8 @@ local res, code, response_headers, status, json_response, data =
         username = username,
         password = password,
         limit = limit,
-        filterValue = filter_value
+        filterValue = filter_value,
+        usernameData = usernameData
     })
 
 -- Check if the request was successful

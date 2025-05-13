@@ -28,21 +28,26 @@ local function parseUrlArgs(args)
     local type = args.type or 'album'
     local offset = args.offset or 0
     local exact = args.exact or 0
-    return serverUrl, action, limit, filterValue, authToken, showDupes, type, offset, exact
+    local username = args.usernameData or nil
+    return serverUrl, action, limit, filterValue, authToken, showDupes, type, offset, exact, username
 end
 
 local function getUrl(args)
-    local serverUrl, action, limit, filterValue, authToken, showDupes, type, offset, exact =
+    local serverUrl, action, limit, filterValue, authToken, showDupes, type, offset, exact, username =
         parseUrlArgs(args)
- 
-    return string.format(
+
+    local url = string.format(
         "%s/server/json.server.php?action=%s&limit=%d&filter=%s&exact=%d&offset=%d&type=%s&show_dupes=%d&auth=%s",
-        serverUrl, action, limit, filterValue, exact, offset, type, showDupes, authToken
+        serverUrl, action, limit, filterValue, exact, offset, type, showDupes, authToken, username
     )
+    if username ~= nil then
+        url = url .. "&username=" .. username
+    end
+    return url
 end
 
 local function makeRequestFromUrl(url)
-    -- print(url)
+    print(url)
     local response_body = {}
     local res, code, response_headers, status = http.request{
         url = url,
