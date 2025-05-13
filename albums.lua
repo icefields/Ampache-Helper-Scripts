@@ -34,10 +34,18 @@ local function isValid(value)
     return value ~= nil and value ~= '' and value ~= 'null' and tostring(value) ~= 'userdata: (nil)'
 end
 
+local function format_value(v)
+    if type(v) == "number" and v % 1 == 0 then
+        return string.format("%d", v)  -- remove .0
+    else
+        return tostring(v)  -- fallback
+    end
+end
+
 -- Function to print only if valid
 local function safePrint(label, value)
     if isValid(value) then
-        print(string.format("%s %s", label, tostring(value)))
+        print(string.format("%s %s", label, format_value(value)))
     end
 end
 
@@ -131,20 +139,14 @@ if code == 200 then
 
     -- Iterate over the "album" array (or type array based on the passed type) and print the desired information
     for _, item in ipairs(data["album"]) do
-        -- Print name if valid
-        -- safePrint("title", string.format("%s (id: %s)", item.title, item.id))
         safePrint(item.artist.name, item.name)
-        safePrint("id", item.id)
-        if item.url then
-            print(item.url)
-        end
-        
-        safePrint("Time", item.time)
-        safePrint("Year", item.year)
-        safePrint("Song Count", item.songcount)
+        safePrint("id:", item.id)
+        safePrint("Time:", item.time)
+        safePrint("Year:", item.year)
+        safePrint("Songcount:", item.songcount)
 
         if item.art and item.has_art then
-            print(item.art)
+            safePrint("Art:", item.art)
         end
 
         print("\n")  -- Add a blank line between items
