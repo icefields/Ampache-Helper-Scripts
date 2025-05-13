@@ -30,7 +30,14 @@ end
 local server_url, username, password, limit, filter_value, is_json_output = 
     ampache.parseArgs(arg)
 
-local res, code, response_headers, status, json_response, data = ampacheHttp.makeRequest(server_url, "songs", username, password, limit, filter_value)
+local res, code, response_headers, status, json_response, data = ampacheHttp.makeRequest({
+        serverUrl = server_url,
+        action = "songs",
+        username = username,
+        password = password,
+        limit = limit,
+        filterValue = filter_value
+    })
 
 -- Check if the request was successful
 if code == 200 then

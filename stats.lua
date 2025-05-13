@@ -13,7 +13,6 @@
 -----------------------------------------------------
 
 local ampache = require("ampache-common")
-local handshake = require("ampache-handshake")
 local ampacheHttp = require("ampache-http")
 
 -- Default values for optional arguments
@@ -100,14 +99,16 @@ for i = 4, #arg do
     end
 end
 
-local authToken = handshake.getAuthToken(server_url, username, password)
-local url = string.format(
-    "%s/server/json.server.php?action=stats&limit=%d&filter=%s&exact=0&offset=0&type=%s&show_dupes=1&auth=%s",
-    server_url, limit, filter_value, type_value, authToken
-)
-
 local res, code, response_headers, status, json_response, data =
-    ampacheHttp.makeRequestFromUrl(url)
+    ampacheHttp.makeRequest({
+        serverUrl = server_url,
+        action = "stats",
+        type = type_value,
+        username = username,
+        password = password,
+        limit = limit,
+        filterValue = filter_value
+    })
 
 -- Check if the request was successful
 if code == 200 then
