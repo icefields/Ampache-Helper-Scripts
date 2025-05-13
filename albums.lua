@@ -81,7 +81,7 @@ end
 local server_url = arg[1]
 local username = arg[2]
 local password = arg[3]
-print(password)
+
 -- Parse the command-line arguments
 for i = 4, #arg do
     local arg_val = arg[i]
@@ -138,6 +138,10 @@ if code == 200 then
         if item.url then
             print(item.url)
         end
+        
+        safePrint("Time", item.time)
+        safePrint("Year", item.year)
+        safePrint("Song Count", item.songcount)
 
         if item.art and item.has_art then
             print(item.art)
