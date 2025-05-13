@@ -27,18 +27,17 @@ if (ampache.shouldPrintHelp()) then
     return
 end
 
-local server_url, username, password, limit, filter_value, is_json_output = 
+local server_url, username, password, limit, filter_value, is_json_output =
     ampache.parseArgs(arg)
 
-local res, code, response_headers, status, json_response, data = 
+local res, code, response_headers, status, json_response, data =
     ampacheHttp.makeRequest(
-        server_url, 
-        "albums", 
-        username, 
-        password, 
-        limit, 
-        filter_value, 
-        is_json_output
+        server_url,
+        "albums",
+        username,
+        password,
+        limit,
+        filter_value
     )
 
 if code == 200 then
