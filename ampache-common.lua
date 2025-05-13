@@ -12,6 +12,66 @@
 -- -------- https://github.com/icefields --------- --
 -----------------------------------------------------
 
+function shouldPrintHelp()
+    -- Check for the help flag (-h)
+    if arg[1] == "-h" then
+        return true
+    end
+
+    -- Ensure that the server_url, username, and password are provided
+    if not arg[1] or not arg[2] or not arg[3] then
+        print("Error: Missing required arguments (server_url, username, password). Use -h for help.")
+        return true
+    end
+    return false
+end
+
+function parseArgs(arg)
+    local limit = 100  -- Default limit
+    local filter_value = ""  -- Default filter
+    local is_json_output = false
+
+    local server_url = arg[1]
+    local username = arg[2]
+    local password = arg[3]
+
+    -- Parse the command-line arguments
+    for i = 4, #arg do
+        local arg_val = arg[i]
+        if arg_val == "-l" then
+            -- Limit argument
+            limit = tonumber(arg[i + 1]) or 100
+            i = i + 1  -- Skip the next argument
+        elseif arg_val == "-f" then
+            -- Filter argument
+            filter_value = arg[i + 1] or ""
+            i = i + 1  -- Skip the next argument
+        elseif arg_val == "-j" then
+	        is_json_output = true
+        end
+    end
+
+    return server_url, username, password, limit, filter_value, is_json_output
+end
+
+-- Print the help guide
+local function printHelp(name)
+    print("Usage: lua " .. name .. 
+[[ <server_url> <username> <password> [OPTIONS]
+
+Required arguments:
+  <server_url>   The URL of the Ampache server
+  <username>     The username for authentication
+  <password>     The password for authentication
+
+Optional arguments:
+  -l <limit>     Limit the number of items to retrieve (default: 100)
+  -f <filter>    Specify the filter for the items
+  -j		     Prints the original json from the network response, when this is passed, all other optional args are ignored
+  -h             Show this help message
+]])
+end
+
 -- Function to check if a value is valid (not nil, empty, or 'null')
 local function isValid(value)
     return value ~= nil and value ~= '' and value ~= 'null' and tostring(value) ~= 'userdata: (nil)'
@@ -43,5 +103,8 @@ return {
     isValid = isValid,
     safePrint = safePrint,
     urlencode = urlencode,
-    getUrl = getUrl
+    getUrl = getUrl,
+    printHelp = printHelp,
+    shouldPrintHelp = shouldPrintHelp,
+    parseArgs = parseArgs
 }
