@@ -49,7 +49,7 @@ if code == 200 then
     
     ampache.safePrint(item.artist.name .. " -", item.title)
     ampache.safePrint("Song Url:", item.url)
-    ampache.safePrint("Album:"item.album.name)
+    ampache.safePrint("Album:", item.album.name)
     if item.art and item.has_art then
         ampache.safePrint("art:", item.art)
     end
