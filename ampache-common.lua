@@ -31,6 +31,7 @@ function parseArgs(arg)
     local filterValue = ""  -- Default filter
     local isJsonOutput = false
     local isPrintUrl = false
+    local include = nil
     
     local serverUrl = arg[1]
     local username = arg[2]
@@ -47,6 +48,9 @@ function parseArgs(arg)
             -- Filter argument
             filterValue = arg[i + 1] or ""
             i = i + 1  -- Skip the next argument
+        elseif arg_val == "-i" then
+            include = arg[i + 1]
+            i = i + 1
         elseif arg_val == "-j" then
 	        isJsonOutput = true
         elseif arg_val == "-d" then
@@ -54,7 +58,7 @@ function parseArgs(arg)
         end
     end
 
-    return serverUrl, username, password, limit, filterValue, isJsonOutput, isPrintUrl
+    return serverUrl, username, password, limit, filterValue, isJsonOutput, isPrintUrl, include
 end
 
 -- Print the help guide
@@ -107,7 +111,6 @@ return {
     isValid = isValid,
     safePrint = safePrint,
     urlencode = urlencode,
-    getUrl = getUrl,
     printHelp = printHelp,
     shouldPrintHelp = shouldPrintHelp,
     parseArgs = parseArgs

@@ -29,11 +29,12 @@ local function parseUrlArgs(args)
     local offset = args.offset or 0
     local exact = args.exact or 0
     local username = args.usernameData or nil
-    return serverUrl, action, limit, filterValue, authToken, showDupes, type, offset, exact, username
+    local include = args.include or nil
+    return serverUrl, action, limit, filterValue, authToken, showDupes, type, offset, exact, username, include
 end
 
 local function getUrl(args)
-    local serverUrl, action, limit, filterValue, authToken, showDupes, type, offset, exact, username =
+    local serverUrl, action, limit, filterValue, authToken, showDupes, type, offset, exact, username, include =
         parseUrlArgs(args)
 
     local url = string.format(
@@ -43,6 +44,10 @@ local function getUrl(args)
     if username ~= nil then
         url = url .. "&username=" .. username
     end
+    if include ~= nil then
+        url = url .. "&include=" .. include
+    end
+
     return url
 end
 
@@ -63,8 +68,12 @@ local function makeRequestFromUrl(url)
     return res, code, response_headers, status, json_response, data
 end
 
+function authToken(serverUrl, username, password)
+    return handshake.getAuthToken(serverUrl, username, password)
+end
+
 function makeRequest(args, printUrl)
-    local authToken = handshake.getAuthToken(args.serverUrl, args.username, args.password)
+    local authToken = authToken(args.serverUrl, args.username, args.password)
     args.authToken = authToken
     local url = getUrl(args)
     if printUrl == true then
@@ -73,7 +82,17 @@ function makeRequest(args, printUrl)
     return makeRequestFromUrl(url)
 end
 
+function streamUrl(serverUrl, username, password, songId, authToken)
+    local authToken = authToken(serverUrl, username, password)
+    return string.format(
+        "%s/server/json.server.php?action=stream&auth=%s&type=song&id=%s",
+        serverUrl, authToken, songId
+    )
+end
+
 return {
-    makeRequest = makeRequest
+    makeRequest = makeRequest,
+    streamUrl = streamUrl,
+    authToken = authToken
 }
 
