@@ -23,7 +23,7 @@ local ampache = require("ampache-common")
 local ampacheHttp = require("ampache-http")
 
 if (ampache.shouldPrintHelp()) then
-    ampache.printHelp("albums.lua")
+    ampache.printHelp("songs.lua")
     return
 end
 

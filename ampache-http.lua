@@ -15,6 +15,7 @@
 
 local handshake = require("ampache-handshake")
 local http = require("socket.http")
+local https = require("ssl.https")
 local ltn12 = require("ltn12")
 local cjson = require("cjson")
 
@@ -51,7 +52,46 @@ local function getUrl(args)
     return url
 end
 
+
+
+local cjson = require("cjson")
+
 local function makeRequestFromUrl(url)
+    local max_redirects = 5
+    local response_body = {}
+
+    for _ = 1, max_redirects do
+        response_body = {}
+        local request = url:match("^https") and https or http
+
+        local res, code, response_headers, status = request.request{
+            url = url,
+            sink = ltn12.sink.table(response_body),
+            redirect = false  -- we handle redirects manually
+        }
+
+        -- Follow redirect if needed
+        if (code == 301 or code == 302) and response_headers and response_headers.location then
+            url = response_headers.location
+        else
+            local json_response = nil
+            local data = nil
+            if code == 200 then
+                json_response = table.concat(response_body)
+                data = cjson.decode(json_response)
+            end
+            return res, code, response_headers, status, json_response, data
+        end
+    end
+
+    return nil, 310, {}, "Too many redirects", nil, nil
+end
+
+
+
+
+
+local function makeRequestFromUrlOLD(url)
     local response_body = {}
     local res, code, response_headers, status = http.request{
         url = url,
