@@ -106,6 +106,38 @@ function urlencode(str)
     end))
 end
 
+function fileExists(path)
+    local f = io.open(path, "r")
+    if f then
+        f:close()
+        return true
+    else
+        return false
+    end
+end
+
+local function isFileEmpty(path)
+    local f = io.open(path, "r")
+    if not f then return true end  -- file doesn't exist
+    local size = f:seek("end")
+    f:close()
+    return size == 0
+end
+
+local function readFile(path)
+    local f = io.open(path, "r")
+    if not f then return nil end
+    local content = f:read("*a")  -- read entire file
+    f:close()
+    return content
+end
+
+local function writeFile(path, string)
+    local file = io.open(path, "w")
+    file:write(string)
+    file:close()
+end
+
 return {
     format_value = format_value,
     isValid = isValid,
@@ -113,5 +145,10 @@ return {
     urlencode = urlencode,
     printHelp = printHelp,
     shouldPrintHelp = shouldPrintHelp,
-    parseArgs = parseArgs
+    parseArgs = parseArgs,
+    fileExists = fileExists,
+    isFileEmpty = isFileEmpty,
+    readFile = readFile,
+    writeFile = writeFile
 }
+

@@ -18,6 +18,7 @@ local http = require("socket.http")
 local https = require("ssl.https")
 local ltn12 = require("ltn12")
 local cjson = require("cjson")
+local ampache = require("ampache-common")
 
 local function parseUrlArgs(args)
     local serverUrl = args.serverUrl or nil
@@ -54,8 +55,6 @@ end
 
 
 
-local cjson = require("cjson")
-
 local function makeRequestFromUrl(url)
     local max_redirects = 5
     local response_body = {}
@@ -77,8 +76,15 @@ local function makeRequestFromUrl(url)
             local json_response = nil
             local data = nil
             if code == 200 then
-                json_response = table.concat(response_body)
-                data = cjson.decode(json_response)
+                if response_body and #response_body > 0 then
+                    json_response = table.concat(response_body)
+                    local ok, decoded = pcall(cjson.decode, json_response)
+                    if ok then
+                       data = decoded
+                    else
+                        return nil, 404, {}, "error decoding json", nil, nil
+                    end
+                end
             end
             return res, code, response_headers, status, json_response, data
         end
@@ -109,10 +115,28 @@ local function makeRequestFromUrlOLD(url)
 end
 
 function authToken(serverUrl, username, password)
-    return handshake.getAuthToken(serverUrl, username, password)
+    local filename = "token"
+    local token = nil
+    if ampache.isFileEmpty(filename) then 
+        token = handshake.getAuthToken(serverUrl, username, password)
+        ampache.writeFile(filename, token)
+    else
+        token = ampache.readFile(filename)
+    end
+    return token
 end
 
 function makeRequest(args, printUrl)
+    res, code, response_headers, status, json_response, data = getTokenAndPerformRequest(args, printUrl)
+    if code == 200 then
+        return res, code, response_headers, status, json_response, data
+    else 
+        ampache.writeFile("token", "")
+        return getTokenAndPerformRequest(args, printUrl)
+    end
+end
+
+function getTokenAndPerformRequest(args, printUrl)
     local authToken = authToken(args.serverUrl, args.username, args.password)
     args.authToken = authToken
     local url = getUrl(args)
