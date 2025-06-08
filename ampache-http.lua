@@ -53,8 +53,6 @@ local function getUrl(args)
     return url
 end
 
-
-
 local function makeRequestFromUrl(url)
     local max_redirects = 5
     local response_body = {}
@@ -66,7 +64,7 @@ local function makeRequestFromUrl(url)
         local res, code, response_headers, status = request.request{
             url = url,
             sink = ltn12.sink.table(response_body),
-            redirect = false  -- we handle redirects manually
+            redirect = false  -- handle redirects manually
         }
 
         -- Follow redirect if needed
@@ -78,9 +76,17 @@ local function makeRequestFromUrl(url)
             if code == 200 then
                 if response_body and #response_body > 0 then
                     json_response = table.concat(response_body)
+                    
+                    
                     local ok, decoded = pcall(cjson.decode, json_response)
                     if ok then
-                       data = decoded
+                        data = decoded
+
+                        -- The server can be returning an error json despite of the 200 response
+                        if data.error ~= nil then 
+                            return nil, data.error.errorCode, {}, "Error Returned by server", json_response, data
+                        end
+
                     else
                         return nil, 404, {}, "error decoding json", nil, nil
                     end
@@ -91,27 +97,6 @@ local function makeRequestFromUrl(url)
     end
 
     return nil, 310, {}, "Too many redirects", nil, nil
-end
-
-
-
-
-
-local function makeRequestFromUrlOLD(url)
-    local response_body = {}
-    local res, code, response_headers, status = http.request{
-        url = url,
-        sink = ltn12.sink.table(response_body)  -- Capture the response into the table
-    }
-
-    local json_response = nil
-    local data = nil
-    if (code == 200) then
-        json_response = table.concat(response_body)
-        data = cjson.decode(json_response)
-    end
-
-    return res, code, response_headers, status, json_response, data
 end
 
 function authToken(serverUrl, username, password)
@@ -159,4 +144,22 @@ return {
     streamUrl = streamUrl,
     authToken = authToken
 }
+
+-- DEPRECATED
+--local function makeRequestFromUrlOLD(url)
+--    local response_body = {}
+--    local res, code, response_headers, status = http.request{
+--        url = url,
+--        sink = ltn12.sink.table(response_body)  -- Capture the response into the table
+--    }
+--
+--    local json_response = nil
+--    local data = nil
+--    if (code == 200) then
+--        json_response = table.concat(response_body)
+--        data = cjson.decode(json_response)
+--    end
+--
+--    return res, code, response_headers, status, json_response, data
+--end
 
