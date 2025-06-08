@@ -33,7 +33,8 @@ local function fetchJson(url)
         url = url,
         sink = ltn12.sink.table(responseBody)
     }
-    if code ~= 200 then
+    
+    if code ~= 200 and code ~= 301 and code ~=302 then
         error("HTTP request failed with status code " .. code)
     end
     return table.concat(responseBody)
