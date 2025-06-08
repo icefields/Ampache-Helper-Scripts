@@ -29,11 +29,13 @@ end
 -- fetch JSON from the URL
 local function fetchJson(url)
     local responseBody = {}
+    print(url)
     local _, code, _, _ = http.request{
         url = url,
         sink = ltn12.sink.table(responseBody)
     }
-    
+   
+
     if code ~= 200 and code ~= 301 and code ~=302 then
         error("HTTP request failed with status code " .. code)
     end
