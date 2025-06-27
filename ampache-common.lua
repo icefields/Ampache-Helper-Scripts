@@ -28,8 +28,9 @@ end
 
 function parseArgs(arg)
     local limit = 100  -- Default limit
-    local filterValue = ""  -- Default filter
     local isJsonOutput = false
+    local typeValue = ""  -- Default filter
+    local filterValue = ""  -- Default filter
     local isPrintUrl = false
     local include = nil
     
@@ -48,6 +49,10 @@ function parseArgs(arg)
             -- Filter argument
             filterValue = arg[i + 1] or ""
             i = i + 1  -- Skip the next argument
+        elseif arg_val == "-t" then
+            -- Filter argument
+            typeValue = arg[i + 1] or ""
+            i = i + 1  -- Skip the next argument
         elseif arg_val == "-i" then
             include = arg[i + 1]
             i = i + 1
@@ -58,7 +63,7 @@ function parseArgs(arg)
         end
     end
 
-    return serverUrl, username, password, limit, filterValue, isJsonOutput, isPrintUrl, include
+    return serverUrl, username, password, limit, filterValue, isJsonOutput, isPrintUrl, include, typeValue
 end
 
 -- Print the help guide
@@ -75,6 +80,7 @@ Optional arguments:
   -l <limit>     Limit the number of items to retrieve (default: 100)
   -f <filter>    Specify the filter for the items
   -j		     Prints the original json from the network response, when this is passed, all other optional args are ignored
+  -t             Type
   -h             Show this help message
   -d             Print the request url, useful for debugging
 ]])
