@@ -1,1 +1,0 @@
-lua tile_images.lua -t $(lua print-arts.lua -o "http://192.168.1.229/server/json.server.php?action=stats&type=album&limit=16&filter=recent&exact=1&offset=0&hide_search=0&show_dupes=1&auth=$auth&user=luci")
