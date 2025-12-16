@@ -33,7 +33,8 @@ local function fetchJson(url)
         url = url,
         sink = ltn12.sink.table(responseBody)
     }
-    if code ~= 200 then
+
+    if code ~= 200 and code ~= 301 and code ~=302 then
         error("HTTP request failed with status code " .. code)
     end
     return table.concat(responseBody)
@@ -56,9 +57,6 @@ local function handshake(serverUrl, username, password)
         auth,
         username
     )
-    -- print(password)
-    -- print()
-    -- print(url)
     return str2Json(fetchJson(url))
 end
 
@@ -67,7 +65,6 @@ local function getAuthToken(serverUrl, username, password)
     return jsonResp['auth']
 end
 
--- print(getAuthToken())
 -- Return a table containing the functions
 return {
     getAuthToken = getAuthToken,

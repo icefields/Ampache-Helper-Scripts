@@ -16,9 +16,7 @@ local socket = require("socket.http")
 local ltn12 = require("ltn12")
 local lfs = require("lfs")
 
-socket.TIMEOUT = 10
-socket.redirect = true
-
+-- Function to download image from URL and save it locally
 local function download_image(url, filename)
     local file, err = io.open(filename, "wb")
     if not file then
@@ -26,7 +24,7 @@ local function download_image(url, filename)
     end
 
     local response_body = {}
-    local _, code = socket.request {
+    local _, code = socket.request{
         url = url,
         sink = ltn12.sink.table(response_body)
     }
@@ -40,8 +38,11 @@ local function download_image(url, filename)
     file:close()
 end
 
+-- Function to split a string by a given delimiter
 local function split(inputstr, sep)
-    sep = sep or "%s"
+    if sep == nil then
+        sep = "%s"
+    end
     local t = {}
     for str in string.gmatch(inputstr, "([^" .. sep .. "]+)") do
         table.insert(t, str)
@@ -49,58 +50,64 @@ local function split(inputstr, sep)
     return t
 end
 
-local function trim(s)
-    return s:match("^%s*(.-)%s*$")
-end
-
+-- function to tile the images from the urls parameter in a single image
+-- commaSeparated boolean that indicates if the urls are a single comma 
+--  separated string or an array of strings
 local function tileImages(urlList, commaSeparated)
-    local urls = {}
-
-    if commaSeparated then
-        for _, u in ipairs(split(urlList, ",")) do
-            table.insert(urls, trim(u))
-        end
-    elseif type(urlList) == "table" then
+    local urls
+    if (commaSeparated) then
+        urls = split(urlList, ",")
+    elseif type(myVariable) == "table" then
         urls = urlList
-    else
-        error("Invalid input")
     end
 
-    if #urls == 0 then
-        error("No URLs provided")
-    end
-
+    -- Create a directory to store downloaded images
     local img_dir = "images"
     if not lfs.attributes(img_dir, "mode") then
         lfs.mkdir(img_dir)
     end
 
+    -- Check if at least one URL is provided
+    if #urls == 0 then
+        error("No URLs provided. Usage: lua tile_images.lua <url1> <url2> ... <urlN>")
+    end
+
+    -- Determine the number of images
+    local num_images = #urls
+
+    -- Calculate the dimensions of the grid
+    local grid_size = math.ceil(math.sqrt(num_images))
+    local num_rows = grid_size
+    local num_cols = grid_size
+
+    -- Download images
     for i, url in ipairs(urls) do
-        download_image(url, img_dir .. "/image" .. i .. ".img")
+        local filename = img_dir .. "/image" .. i .. ".jpg"
+        download_image(url, filename)
     end
 
-    local count = #urls
-    local grid = math.ceil(math.sqrt(count))
-    local tile = 256
+    -- Prepare the ImageMagick montage command
+    local command = "montage"
+    for i = 1, num_images do
+        local filename = img_dir .. "/image" .. i .. ".jpg"
+        command = command .. " " .. filename
+    end
+    command = command .. " -tile " .. num_cols .. "x" .. num_rows .. " -geometry +0+0 tiled_image.jpg"
 
-    local cmd = "montage"
-    for i = 1, count do
-        cmd = cmd .. " " .. img_dir .. "/image" .. i .. ".img"
+    -- Execute the command to tile images
+    os.execute(command)
+
+    -- Remove temporary image files
+    for i = 1, num_images do
+        local filename = img_dir .. "/image" .. i .. ".jpg"
+        os.remove(filename)
     end
 
-    cmd = cmd .. string.format(
-        " -resize %dx%d^ -gravity center -extent %dx%d -tile %dx%d -geometry +0+0 tiled_image.jpg",
-        tile, tile, tile, tile, grid, grid
-    )
-
-    os.execute(cmd)
-
-    for i = 1, count do
-        os.remove(img_dir .. "/image" .. i .. ".img")
-    end
 end
 
+-- Parse command line arguments
 if arg[1] == "-t" then
+    -- Get URLs from command line arguments
     tileImages(arg[2], true)
 end
 

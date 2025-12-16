@@ -28,8 +28,9 @@ end
 
 function parseArgs(arg)
     local limit = 100  -- Default limit
-    local filterValue = ""  -- Default filter
     local isJsonOutput = false
+    local typeValue = ""  -- Default filter
+    local filterValue = ""  -- Default filter
     local isPrintUrl = false
     local include = nil
     
@@ -48,6 +49,10 @@ function parseArgs(arg)
             -- Filter argument
             filterValue = arg[i + 1] or ""
             i = i + 1  -- Skip the next argument
+        elseif arg_val == "-t" then
+            -- Filter argument
+            typeValue = arg[i + 1] or ""
+            i = i + 1  -- Skip the next argument
         elseif arg_val == "-i" then
             include = arg[i + 1]
             i = i + 1
@@ -58,7 +63,7 @@ function parseArgs(arg)
         end
     end
 
-    return serverUrl, username, password, limit, filterValue, isJsonOutput, isPrintUrl, include
+    return serverUrl, username, password, limit, filterValue, isJsonOutput, isPrintUrl, include, typeValue
 end
 
 -- Print the help guide
@@ -75,6 +80,7 @@ Optional arguments:
   -l <limit>     Limit the number of items to retrieve (default: 100)
   -f <filter>    Specify the filter for the items
   -j		     Prints the original json from the network response, when this is passed, all other optional args are ignored
+  -t             Type
   -h             Show this help message
   -d             Print the request url, useful for debugging
 ]])
@@ -106,6 +112,38 @@ function urlencode(str)
     end))
 end
 
+function fileExists(path)
+    local f = io.open(path, "r")
+    if f then
+        f:close()
+        return true
+    else
+        return false
+    end
+end
+
+local function isFileEmpty(path)
+    local f = io.open(path, "r")
+    if not f then return true end  -- file doesn't exist
+    local size = f:seek("end")
+    f:close()
+    return size == 0
+end
+
+local function readFile(path)
+    local f = io.open(path, "r")
+    if not f then return nil end
+    local content = f:read("*a")  -- read entire file
+    f:close()
+    return content
+end
+
+local function writeFile(path, string)
+    local file = io.open(path, "w")
+    file:write(string)
+    file:close()
+end
+
 return {
     format_value = format_value,
     isValid = isValid,
@@ -113,5 +151,10 @@ return {
     urlencode = urlencode,
     printHelp = printHelp,
     shouldPrintHelp = shouldPrintHelp,
-    parseArgs = parseArgs
+    parseArgs = parseArgs,
+    fileExists = fileExists,
+    isFileEmpty = isFileEmpty,
+    readFile = readFile,
+    writeFile = writeFile
 }
+
