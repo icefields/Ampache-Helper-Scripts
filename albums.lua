@@ -40,7 +40,7 @@ local res, code, response_headers, status, json_response, data =
         filterValue = filter_value
     })
 
-if code == 200 then
+if code == 200 and data ~= nil then
     -- if the -j option is passed, just print the json file
     if is_json_output == true then
     	print(json_response)
