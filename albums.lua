@@ -19,40 +19,26 @@ local script_dir = script_path:match("(.+)/")  -- Get everything before the last
 script_dir = script_dir or ""  -- If no directory, make it an empty string
 package.path = script_dir .. "/?.lua;" .. package.path
 
-local ampache = require("ampache-common")
-local ampacheHttp = require("ampache-http")
+local common = require("ampache-common")
+local client = require("ampache-client")
+local view = require("ampache-view")
 
-if (ampache.shouldPrintHelp()) then
-    ampache.printHelp("albums.lua")
+if (common.shouldPrintHelp()) then
+    common.printHelp("albums.lua")
     return
 end
 
-local args = ampache.parseArgs(arg)
-args.action = "albums"
+local args = common.parseArgs(arg)
+local api = client.new(args.server_url, args.username, args.password)
 
-local res, code, response_headers, status, json_response, data =
-    ampacheHttp.makeRequest(args, args.is_print_url)
+local res, code, response_headers, status, json_response, data = api:albums(args)
 
-if code == 200 and data ~= nil then
-    -- if the -j option is passed, just print the json file
+if code == 200 then
     if args.is_json_output == true then
-    	print(json_response)
-	    return
+        print(json_response)
+        return
     end
-
-    for _, item in ipairs(data["album"]) do
-        ampache.safePrint(item.artist.name .. " -", item.name)
-        ampache.safePrint("id:", item.id)
-        ampache.safePrint("Time:", item.time)
-        ampache.safePrint("Year:", item.year)
-        ampache.safePrint("Songcount:", item.songcount)
-
-        if item.art and item.has_art then
-            ampache.safePrint("Art:", item.art)
-        end
-
-        print("\n")  -- Add a blank line between items
-    end
+    view.albums(data)
 else
-    print("HTTP request failed with status: " .. status)
+    view.error(status)
 end
