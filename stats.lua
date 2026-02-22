@@ -21,6 +21,7 @@ local type_value = "album"  -- Default type
 local filter_value = "newest"  -- Default filter
 local is_json_output = false
 local printUrl = false
+local usernameData = nil
 
 -- Function to print the help guide
 local function printHelp()
@@ -55,8 +56,6 @@ end
 local server_url = arg[1]
 local username = arg[2]
 local password = arg[3]
-
-local usernameData = username
 
 -- Parse the command-line arguments
 for i = 4, #arg do
@@ -104,7 +103,7 @@ for i = 4, #arg do
     elseif arg_val == "-d" then
         printUrl = true
     elseif arg_val == "-u" then 
-        usernameData = arg[i + 1] or username
+        usernameData = arg[i + 1]
         i = i + 1  -- Skip the next argument
     end
 end
@@ -127,6 +126,12 @@ if code == 200 then
     if is_json_output == true then
     	print(json_response)
 	    return
+    end
+
+    -- Check if the response contains data for the specified type
+    if not data[type_value] then
+        print("No " .. type_value .. " data found in response")
+        return
     end
 
     for _, item in ipairs(data[type_value]) do
@@ -198,4 +203,3 @@ else
     -- Print an error message if the request fails
     print("HTTP request failed with status: " .. status)
 end
-

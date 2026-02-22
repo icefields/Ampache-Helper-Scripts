@@ -23,12 +23,17 @@ local ampache = require("ampache-common")
 local ampacheHttp = require("ampache-http")
 
 if (ampache.shouldPrintHelp()) then
-    ampache.printHelp("songs.lua")
+    ampache.printHelp("playlist-songs.lua")
     return
 end
 
 local server_url, username, password, limit, filter_value, is_json_output = 
     ampache.parseArgs(arg)
+
+-- Validate that filter_value is provided for playlist_songs
+if not filter_value or filter_value == "" then
+    error("Error: filter is required for playlist_songs action. Please provide a playlist ID or name as the filter.")
+end
 
 local res, code, response_headers, status, json_response, data = ampacheHttp.makeRequest({
         serverUrl = server_url,
@@ -46,6 +51,12 @@ if code == 200 then
     if is_json_output == true then
     	print(json_response)
 	    return
+    end
+
+    -- Check if the response contains song data
+    if not data["song"] then
+        print("No song data found in response")
+        return
     end
 
     for _, item in ipairs(data["song"]) do
@@ -71,4 +82,3 @@ else
     -- Print an error message if the request fails
     print("HTTP request failed with status: " .. status)
 end
-
