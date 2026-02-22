@@ -47,7 +47,7 @@ local function testCall(actionName, params, expectSuccess)
     results.total = results.total + 1
     local args = {
         action = actionName,
-        serverUrl = config.serverUrl,
+        server_url = config.serverUrl,
         username = config.username,
         password = config.password
     }
