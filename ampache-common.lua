@@ -33,6 +33,9 @@ function parseArgs(arg)
     local filterValue = ""  -- Default filter
     local isPrintUrl = false
     local include = nil
+    local offset = 0
+    local exact = 0
+    local showDupes = 1
     
     local serverUrl = arg[1]
     local username = arg[2]
@@ -50,20 +53,29 @@ function parseArgs(arg)
             filterValue = arg[i + 1] or ""
             i = i + 1  -- Skip the next argument
         elseif arg_val == "-t" then
-            -- Filter argument
+            -- Type argument
             typeValue = arg[i + 1] or ""
             i = i + 1  -- Skip the next argument
         elseif arg_val == "-i" then
             include = arg[i + 1]
             i = i + 1
         elseif arg_val == "-j" then
-	        isJsonOutput = true
+            isJsonOutput = true
         elseif arg_val == "-d" then
-	        isPrintUrl = true
+            isPrintUrl = true
+        elseif arg_val == "-o" then
+            offset = tonumber(arg[i + 1]) or 0
+            i = i + 1
+        elseif arg_val == "-e" then
+            exact = tonumber(arg[i + 1]) or 0
+            i = i + 1
+        elseif arg_val == "-s" then
+            showDupes = tonumber(arg[i + 1]) or 1
+            i = i + 1
         end
     end
 
-    return serverUrl, username, password, limit, filterValue, isJsonOutput, isPrintUrl, include, typeValue
+    return serverUrl, username, password, limit, filterValue, isJsonOutput, isPrintUrl, include, typeValue, offset, exact, showDupes
 end
 
 -- Print the help guide
@@ -79,10 +91,13 @@ Required arguments:
 Optional arguments:
   -l <limit>     Limit the number of items to retrieve (default: 100)
   -f <filter>    Specify the filter for the items
-  -j		     Prints the original json from the network response, when this is passed, all other optional args are ignored
+  -j             Prints the original json from the network response, when this is passed, all other optional args are ignored
   -t             Type
   -h             Show this help message
   -d             Print the request url, useful for debugging
+  -o <offset>    Set the offset for pagination (default: 0)
+  -e <exact>     Set exact match flag (0 or 1, default: 0)
+  -s <show_dupes> Show duplicate items (0 or 1, default: 1)
 ]])
 end
 
@@ -157,4 +172,3 @@ return {
     readFile = readFile,
     writeFile = writeFile
 }
-

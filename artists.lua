@@ -47,15 +47,20 @@ if code == 200 then
 	    return
     end
 
-    for _, item in ipairs(data["album"]) do
-        ampache.safePrint(item.artist.name .. " -", item.name)
-        ampache.safePrint("id:", item.id)
-        ampache.safePrint("Time:", item.time)
-        ampache.safePrint("Year:", item.year)
-        ampache.safePrint("Songcount:", item.songcount)
+    -- Check if the response contains artist data
+    if not data["artist"] then
+        print("No artist data found in response")
+        return
+    end
+
+    for _, item in ipairs(data["artist"]) do
+        ampache.safePrint("name", item.name)
+        ampache.safePrint("id", item.id)
+        ampache.safePrint("albums", item.albums)
+        ampache.safePrint("songcount", item.songcount)
 
         if item.art and item.has_art then
-            ampache.safePrint("Art:", item.art)
+            ampache.safePrint("art", item.art)
         end
 
         print("\n")  -- Add a blank line between items
@@ -63,4 +68,3 @@ if code == 200 then
 else
     print("HTTP request failed with status: " .. status)
 end
-

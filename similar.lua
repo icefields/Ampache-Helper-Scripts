@@ -30,6 +30,11 @@ end
 local server_url, username, password, limit, filter_value, is_json_output, isPrintUrl, include, typeValue =
     ampache.parseArgs(arg)
 
+-- Validate type value
+if typeValue ~= "song" and typeValue ~= "artist" then
+    error("Invalid type specified. Valid values are: song, artist")
+end
+
 local res, code, response_headers, status, json_response, data =
     ampacheHttp.makeRequest({
         serverUrl = server_url,
@@ -48,15 +53,28 @@ if code == 200 then
 	    return
     end
 
-    for _, item in ipairs(data["album"]) do
-        ampache.safePrint(item.artist.name .. " -", item.name)
-        ampache.safePrint("id:", item.id)
-        ampache.safePrint("Time:", item.time)
-        ampache.safePrint("Year:", item.year)
-        ampache.safePrint("Songcount:", item.songcount)
+    -- Check if the response contains the expected data type
+    local items = data[typeValue]
+    if not items then
+        print("No " .. typeValue .. " items found in response")
+        return
+    end
+
+    for _, item in ipairs(items) do
+        if typeValue == "artist" then
+            ampache.safePrint("name", item.name)
+            ampache.safePrint("id", item.id)
+            ampache.safePrint("albums", item.albums)
+            ampache.safePrint("songcount", item.songcount)
+        elseif typeValue == "song" then
+            ampache.safePrint("title", item.title)
+            ampache.safePrint("id", item.id)
+            ampache.safePrint("artist", item.artist.name)
+            ampache.safePrint("album", item.album.name)
+        end
 
         if item.art and item.has_art then
-            ampache.safePrint("Art:", item.art)
+            ampache.safePrint("art", item.art)
         end
 
         print("\n")  -- Add a blank line between items
@@ -64,4 +82,3 @@ if code == 200 then
 else
     print("HTTP request failed with status: " .. status)
 end
-
