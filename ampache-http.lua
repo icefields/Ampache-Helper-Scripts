@@ -33,7 +33,7 @@ local param_mapping = {
     update = "update",
     cond = "cond",
     sort = "sort",
-    username = "username", -- for stats
+    username_data = "username", -- Maps the stats-specific username_data to API 'username'
     random = "random",
     top50 = "top50"
 }
@@ -56,11 +56,6 @@ local function buildQueryString(args, authToken)
         if args[arg_key] ~= nil then
             table.insert(parts, api_key .. "=" .. ampache.urlencode(tostring(args[arg_key])))
         end
-    end
-    
-    -- Handle specific mappings that might differ
-    if args.filter then -- 'filter' in args maps to 'filter' in API, but 'filterValue' was used before
-         -- Already handled by mapping if key is 'filter'
     end
     
     return table.concat(parts, "&")

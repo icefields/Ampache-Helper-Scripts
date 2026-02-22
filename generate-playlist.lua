@@ -42,16 +42,16 @@ local server, username, password = read_credentials()
 
 local res, code, response_headers, status, jsonResponse, data = 
         ampacheHttp.makeRequest({
-            serverUrl = server,
+            server_url = server,
             action = "playlists",
             username = username,
             password = password,
             limit = 10,
-            filterValue = nil, --ampache.urlencode(arg[1]),
+            filter = nil, --ampache.urlencode(arg[1]),
             include = "song"
         }, false)
 
-local token = ampacheHttp.authToken
+local token = ampacheHttp.authToken(server, username, password)
 
 function playlists()
     str = ''
@@ -77,4 +77,3 @@ if arg[2] == "-p" then
 else
     songUrls()
 end
-    
