@@ -12,13 +12,13 @@
 -- -------- https://github.com/icefields --------- --
 -----------------------------------------------------
 
-local ampache_http = require("ampache-http")
-local api_methods = require("ampache-api-methods")
+local ampacheHttp = require("ampache-http")
+local apiMethods = require("ampache-api-methods")
 local cjson = require("cjson")
 
 -- Configuration
 local config = {
-    server_url = nil,
+    serverUrl = nil,
     username = nil,
     password = nil
 }
@@ -47,7 +47,7 @@ local function testCall(actionName, params, expectSuccess)
     results.total = results.total + 1
     local args = {
         action = actionName,
-        server_url = config.server_url,
+        serverUrl = config.serverUrl,
         username = config.username,
         password = config.password
     }
@@ -55,8 +55,8 @@ local function testCall(actionName, params, expectSuccess)
     -- Merge params
     for k, v in pairs(params or {}) do args[k] = v end
     
-    -- Returns: res, code, headers, status, json_str, data
-    local success, res, code, headers, status, json_str, data = pcall(ampache_http.makeRequest, args, false)
+    -- Returns: res, code, headers, status, jsonStr, data
+    local success, res, code, headers, status, jsonStr, data = pcall(ampacheHttp.makeRequest, args, false)
     
     if not success then
         -- res contains the error message
@@ -173,7 +173,7 @@ end
 
 local function runTests()
     printStatus("INFO", "Starting API Tests...")
-    printStatus("INFO", "Connecting to " .. config.server_url)
+    printStatus("INFO", "Connecting to " .. config.serverUrl)
     
     -- 1. Test Handshake (Implicitly tested via auth, but we can test ping)
     testCall("ping", {})
@@ -194,7 +194,7 @@ local function runTests()
     if not songId then printStatus("INFO", "No songs found on server. Some tests will be skipped.") end
     
     -- 3. Iterate all methods
-    for name, def in pairs(api_methods.methods) do
+    for name, def in pairs(apiMethods.methods) do
         if skipList[name] then
             results.skipped = results.skipped + 1
             results.total = results.total + 1 -- Count skipped in total
@@ -299,13 +299,13 @@ local function main()
         return
     end
     
-    config.server_url = arg[1]
+    config.serverUrl = arg[1]
     config.username = arg[2]
     config.password = arg[3]
     
     -- Remove trailing slash from URL if present
-    if config.server_url:sub(-1) == "/" then
-        config.server_url = config.server_url:sub(1, -2)
+    if config.serverUrl:sub(-1) == "/" then
+        config.serverUrl = config.serverUrl:sub(1, -2)
     end
     
     runTests()

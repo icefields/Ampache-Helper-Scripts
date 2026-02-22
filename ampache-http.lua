@@ -18,24 +18,24 @@ local https = require("ssl.https")
 local ltn12 = require("ltn12")
 local cjson = require("cjson")
 local ampache = require("ampache-common")
-local api_methods = require("ampache-api-methods")
+local apiMethods = require("ampache-api-methods")
 
 -- Mapping internal argument names to API parameter names
 -- This handles cases where the CLI arg name differs from the API spec
-local param_mapping = {
+local paramMapping = {
     limit = "limit",
     filter = "filter",
     type = "type",
     offset = "offset",
     exact = "exact",
     include = "include",
-    show_dupes = "show_dupes",
-    hide_search = "hide_search",
+    showDupes = "show_dupes",
+    hideSearch = "hide_search",
     add = "add",
     update = "update",
     cond = "cond",
     sort = "sort",
-    username_data = "username", -- Maps the stats-specific username_data to API 'username'
+    usernameData = "username", -- Maps the stats-specific usernameData to API 'username'
     random = "random",
     top50 = "top50",
     id = "id",
@@ -60,7 +60,7 @@ local param_mapping = {
     format = "format",
     bitrate = "bitrate",
     length = "length",
-    offset_stream = "offset", -- Avoid conflict with pagination offset if needed, though API uses 'offset' for both usually
+    offsetStream = "offset", -- Avoid conflict with pagination offset if needed, though API uses 'offset' for both usually
     stats = "stats"
 }
 
@@ -86,73 +86,61 @@ local function buildQueryString(args, authToken, methodDef)
     
     -- 1. Add Required Parameters
     if methodDef and methodDef.required then
-        for _, req_param in ipairs(methodDef.required) do
+        for _, reqParam in ipairs(methodDef.required) do
             -- Check if we have a mapped arg or a direct arg
-            local arg_val = nil
-            -- Check mapping first (reverse lookup not needed, we check args directly below)
-            -- Actually, we look for the API param name in args, or the mapped key.
-            
-            -- Logic: If API requires 'filter', look for args.filter.
-            -- If API requires 'username', look for args.username or args.username_data (via mapping)
-            
-            -- Simplified: iterate args, map them, see if they match required.
-            -- But easier: check if the required param exists in args (directly or via mapped key)
+            local argVal = nil
             
             local found = false
-            for arg_key, api_key in pairs(param_mapping) do
-                if api_key == req_param and args[arg_key] ~= nil then
-                    addParam(api_key, args[arg_key])
+            for argKey, apiKey in pairs(paramMapping) do
+                if apiKey == reqParam and args[argKey] ~= nil then
+                    addParam(apiKey, args[argKey])
                     found = true
                     break
                 end
             end
             
-            if not found and args[req_param] ~= nil then
-                addParam(req_param, args[req_param])
+            if not found and args[reqParam] ~= nil then
+                addParam(reqParam, args[reqParam])
                 found = true
             end
-            
-            -- If still not found, but required, validation should catch it, 
-            -- but we try to send what we have.
         end
     end
 
     -- 2. Add Optional Parameters provided in args
     if methodDef and methodDef.optional then
-        for _, opt_param in ipairs(methodDef.optional) do
+        for _, optParam in ipairs(methodDef.optional) do
              -- Check mapping
              local found = false
-             for arg_key, api_key in pairs(param_mapping) do
-                if api_key == opt_param and args[arg_key] ~= nil then
-                    addParam(api_key, args[arg_key])
+             for argKey, apiKey in pairs(paramMapping) do
+                if apiKey == optParam and args[argKey] ~= nil then
+                    addParam(apiKey, args[argKey])
                     found = true
                     break
                 end
             end
             
-            if not found and args[opt_param] ~= nil then
-                addParam(opt_param, args[opt_param])
+            if not found and args[optParam] ~= nil then
+                addParam(optParam, args[optParam])
             end
         end
     end
     
     -- 3. Fallback: Add any other arguments passed that might not be in definition (flexibility)
-    -- This ensures custom params or new API params work even if definition is outdated
-    for arg_key, val in pairs(args) do
+    for argKey, val in pairs(args) do
         -- Skip internal args
-        if arg_key ~= "action" and arg_key ~= "server_url" and arg_key ~= "username" and arg_key ~= "password" and arg_key ~= "is_json_output" and arg_key ~= "is_print_url" then
-            local api_key = param_mapping[arg_key] or arg_key
+        if argKey ~= "action" and argKey ~= "serverUrl" and argKey ~= "username" and argKey ~= "password" and argKey ~= "isJsonOutput" and argKey ~= "isPrintUrl" then
+            local apiKey = paramMapping[argKey] or argKey
             -- Check if we already added it
-            local already_added = false
+            local alreadyAdded = false
             for _, part in ipairs(parts) do
-                if part:match("^" .. api_key .. "=") then
-                    already_added = true
+                if part:match("^" .. apiKey .. "=") then
+                    alreadyAdded = true
                     break
                 end
             end
             
-            if not already_added then
-                addParam(api_key, val)
+            if not alreadyAdded then
+                addParam(apiKey, val)
             end
         end
     end
@@ -161,65 +149,65 @@ local function buildQueryString(args, authToken, methodDef)
 end
 
 local function makeRequestFromUrl(url)
-    local max_redirects = 5
-    local response_body = {}
+    local maxRedirects = 5
+    local responseBody = {}
 
-    for _ = 1, max_redirects do
-        response_body = {}
+    for _ = 1, maxRedirects do
+        responseBody = {}
         local request = url:match("^https") and https or http
 
-        local res, code, response_headers, status = request.request{
+        local res, code, responseHeaders, status = request.request{
             url = url,
-            sink = ltn12.sink.table(response_body),
+            sink = ltn12.sink.table(responseBody),
             redirect = false  -- handle redirects manually
         }
 
         -- Follow redirect if needed
-        if (code == 301 or code == 302) and response_headers and response_headers.location then
-            url = response_headers.location
+        if (code == 301 or code == 302) and responseHeaders and responseHeaders.location then
+            url = responseHeaders.location
         else
-            local json_response = nil
+            local jsonResponse = nil
             local data = nil
             if code == 200 then
-                if response_body and #response_body > 0 then
-                    json_response = table.concat(response_body)
+                if responseBody and #responseBody > 0 then
+                    jsonResponse = table.concat(responseBody)
                     
-                    local ok, decoded = pcall(cjson.decode, json_response)
+                    local ok, decoded = pcall(cjson.decode, jsonResponse)
                     if ok then
                         data = decoded
 
                         -- The server can be returning an error json despite of the 200 response
                         if data.error ~= nil then 
-                            return nil, data.error.errorCode or 500, response_headers, "Error Returned by server: " .. (data.error.message or "Unknown error"), json_response, data
+                            return nil, data.error.errorCode or 500, responseHeaders, "Error Returned by server: " .. (data.error.message or "Unknown error"), jsonResponse, data
                         end
 
                     else
-                        return nil, 404, response_headers, "Error decoding JSON response", nil, nil
+                        return nil, 404, responseHeaders, "Error decoding JSON response", nil, nil
                     end
                 else
-                    return nil, 204, response_headers, "Empty response body", nil, nil
+                    return nil, 204, responseHeaders, "Empty response body", nil, nil
                 end
             elseif code == 400 then
-                return nil, 400, response_headers, "Bad Request: The request was malformed", nil, nil
+                return nil, 400, responseHeaders, "Bad Request: The request was malformed", nil, nil
             elseif code == 401 then
-                return nil, 401, response_headers, "Unauthorized: Invalid authentication credentials", nil, nil
+                return nil, 401, responseHeaders, "Unauthorized: Invalid authentication credentials", nil, nil
             elseif code == 403 then
-                return nil, 403, response_headers, "Forbidden: Insufficient permissions", nil, nil
+                return nil, 403, responseHeaders, "Forbidden: Insufficient permissions", nil, nil
             elseif code == 404 then
-                return nil, 404, response_headers, "Not Found: The requested resource was not found", nil, nil
+                return nil, 404, responseHeaders, "Not Found: The requested resource was not found", nil, nil
             elseif code == 429 then
-                return nil, 429, response_headers, "Too Many Requests: Rate limit exceeded", nil, nil
+                return nil, 429, responseHeaders, "Too Many Requests: Rate limit exceeded", nil, nil
             elseif code >= 500 then
-                return nil, code, response_headers, "Server Error: " .. (status or "Unknown server error"), nil, nil
+                return nil, code, responseHeaders, "Server Error: " .. (status or "Unknown server error"), nil, nil
             else
-                return nil, code, response_headers, "Unexpected HTTP status: " .. (status or "Unknown"), nil, nil
+                return nil, code, responseHeaders, "Unexpected HTTP status: " .. (status or "Unknown"), nil, nil
             end
             
-            return res, code, response_headers, status, json_response, data
+            return res, code, responseHeaders, status, jsonResponse, data
         end
     end
 
-    return nil, 310, response_headers, "Too many redirects", nil, nil
+    return nil, 310, responseHeaders, "Too many redirects", nil, nil
 end
 
 local function getStoredToken()
@@ -250,12 +238,12 @@ local function isTokenExpired(expireStr)
     -- This is a simplification; robust parsing is better but requires libraries.
     
     -- Get current UTC time table
-    local now_utc = os.date("!*t")
-    local now_str = string.format("%04d-%02d-%02dT%02d:%02d:%02d", 
-        now_utc.year, now_utc.month, now_utc.day, now_utc.hour, now_utc.min, now_utc.sec)
+    local nowUtc = os.date("!*t")
+    local nowStr = string.format("%04d-%02d-%02dT%02d:%02d:%02d", 
+        nowUtc.year, nowUtc.month, nowUtc.day, nowUtc.hour, nowUtc.min, nowUtc.sec)
     
     -- Compare
-    return now_str >= expireStr:sub(1, 19) -- Compare up to seconds
+    return nowStr >= expireStr:sub(1, 19) -- Compare up to seconds
 end
 
 local function authToken(serverUrl, username, password)
@@ -277,8 +265,8 @@ end
 
 local function makeRequest(args, printUrl)
     -- Validate required arguments
-    if not args.server_url then
-        error("Missing required argument: server_url")
+    if not args.serverUrl then
+        error("Missing required argument: serverUrl")
     end
     if not args.action then
         error("Missing required argument: action")
@@ -291,7 +279,7 @@ local function makeRequest(args, printUrl)
     end
     
     -- Validate server URL format
-    if not args.server_url:match("^https?://") then
+    if not args.serverUrl:match("^https?://") then
         error("Invalid server URL format. Must start with http:// or https://")
     end
     
@@ -301,9 +289,9 @@ local function makeRequest(args, printUrl)
     end
     
     -- Validate against API definition
-    local methodDef = api_methods.getMethod(args.action)
+    local methodDef = apiMethods.getMethod(args.action)
     if methodDef then
-        local ok, err = api_methods.validateMethod(args.action, args)
+        local ok, err = apiMethods.validateMethod(args.action, args)
         if not ok then
             -- Log warning but proceed? Or error out? 
             -- We will log a warning to stderr but try to proceed for flexibility
@@ -314,11 +302,11 @@ local function makeRequest(args, printUrl)
         io.stderr:write("Warning: Unknown API method '" .. args.action .. "'\n")
     end
     
-    local auth = authToken(args.server_url, args.username, args.password)
+    local auth = authToken(args.serverUrl, args.username, args.password)
     
     -- Build URL
     local queryString = buildQueryString(args, auth, methodDef)
-    local url = string.format("%s/server/json.server.php?%s", args.server_url, queryString)
+    local url = string.format("%s/server/json.server.php?%s", args.serverUrl, queryString)
     
     if printUrl == true then
         print(url)
@@ -327,12 +315,12 @@ local function makeRequest(args, printUrl)
     return makeRequestFromUrl(url)
 end
 
-local function streamUrl(serverUrl, username, password, songId, authToken)
+local function streamUrl(serverUrl, username, password, songId, authTokenArg)
     if not songId then
         error("Missing required argument: songId")
     end
     
-    local auth = authToken or authToken(serverUrl, username, password)
+    local auth = authTokenArg or authToken(serverUrl, username, password)
     return string.format(
         "%s/server/json.server.php?action=stream&auth=%s&type=song&id=%s",
         serverUrl, auth, songId
