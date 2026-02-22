@@ -18,8 +18,10 @@ local https = require("ssl.https")
 local ltn12 = require("ltn12")
 local cjson = require("cjson")
 local ampache = require("ampache-common")
+local api_methods = require("ampache-api-methods")
 
 -- Mapping internal argument names to API parameter names
+-- This handles cases where the CLI arg name differs from the API spec
 local param_mapping = {
     limit = "limit",
     filter = "filter",
@@ -35,10 +37,34 @@ local param_mapping = {
     sort = "sort",
     username_data = "username", -- Maps the stats-specific username_data to API 'username'
     random = "random",
-    top50 = "top50"
+    top50 = "top50",
+    id = "id",
+    song = "song",
+    artist = "artist",
+    album = "album",
+    name = "name",
+    user = "user",
+    client = "client",
+    date = "date",
+    position = "position",
+    rating = "rating",
+    flag = "flag",
+    oid = "oid",
+    method = "method",
+    task = "task",
+    catalog = "catalog",
+    folder = "folder",
+    file = "file",
+    url = "url",
+    mode = "mode",
+    format = "format",
+    bitrate = "bitrate",
+    length = "length",
+    offset_stream = "offset", -- Avoid conflict with pagination offset if needed, though API uses 'offset' for both usually
+    stats = "stats"
 }
 
-local function buildQueryString(args, authToken)
+local function buildQueryString(args, authToken, methodDef)
     local parts = {}
     
     -- Add auth token
@@ -50,11 +76,84 @@ local function buildQueryString(args, authToken)
     if args.action then
         table.insert(parts, "action=" .. args.action)
     end
+
+    -- Helper to add a parameter
+    local function addParam(key, value)
+        if value ~= nil then
+            table.insert(parts, key .. "=" .. ampache.urlencode(tostring(value)))
+        end
+    end
     
-    -- Add other arguments based on mapping
-    for arg_key, api_key in pairs(param_mapping) do
-        if args[arg_key] ~= nil then
-            table.insert(parts, api_key .. "=" .. ampache.urlencode(tostring(args[arg_key])))
+    -- 1. Add Required Parameters
+    if methodDef and methodDef.required then
+        for _, req_param in ipairs(methodDef.required) do
+            -- Check if we have a mapped arg or a direct arg
+            local arg_val = nil
+            -- Check mapping first (reverse lookup not needed, we check args directly below)
+            -- Actually, we look for the API param name in args, or the mapped key.
+            
+            -- Logic: If API requires 'filter', look for args.filter.
+            -- If API requires 'username', look for args.username or args.username_data (via mapping)
+            
+            -- Simplified: iterate args, map them, see if they match required.
+            -- But easier: check if the required param exists in args (directly or via mapped key)
+            
+            local found = false
+            for arg_key, api_key in pairs(param_mapping) do
+                if api_key == req_param and args[arg_key] ~= nil then
+                    addParam(api_key, args[arg_key])
+                    found = true
+                    break
+                end
+            end
+            
+            if not found and args[req_param] ~= nil then
+                addParam(req_param, args[req_param])
+                found = true
+            end
+            
+            -- If still not found, but required, validation should catch it, 
+            -- but we try to send what we have.
+        end
+    end
+
+    -- 2. Add Optional Parameters provided in args
+    if methodDef and methodDef.optional then
+        for _, opt_param in ipairs(methodDef.optional) do
+             -- Check mapping
+             local found = false
+             for arg_key, api_key in pairs(param_mapping) do
+                if api_key == opt_param and args[arg_key] ~= nil then
+                    addParam(api_key, args[arg_key])
+                    found = true
+                    break
+                end
+            end
+            
+            if not found and args[opt_param] ~= nil then
+                addParam(opt_param, args[opt_param])
+            end
+        end
+    end
+    
+    -- 3. Fallback: Add any other arguments passed that might not be in definition (flexibility)
+    -- This ensures custom params or new API params work even if definition is outdated
+    for arg_key, val in pairs(args) do
+        -- Skip internal args
+        if arg_key ~= "action" and arg_key ~= "server_url" and arg_key ~= "username" and arg_key ~= "password" and arg_key ~= "is_json_output" and arg_key ~= "is_print_url" then
+            local api_key = param_mapping[arg_key] or arg_key
+            -- Check if we already added it
+            local already_added = false
+            for _, part in ipairs(parts) do
+                if part:match("^" .. api_key .. "=") then
+                    already_added = true
+                    break
+                end
+            end
+            
+            if not already_added then
+                addParam(api_key, val)
+            end
         end
     end
     
@@ -201,10 +300,24 @@ function makeRequest(args, printUrl)
         error("Invalid action name. Must contain only lowercase letters and underscores")
     end
     
+    -- Validate against API definition
+    local methodDef = api_methods.getMethod(args.action)
+    if methodDef then
+        local ok, err = api_methods.validateMethod(args.action, args)
+        if not ok then
+            -- Log warning but proceed? Or error out? 
+            -- We will log a warning to stderr but try to proceed for flexibility
+            -- as some params might be passed under different names.
+            io.stderr:write("Warning: " .. err .. "\n")
+        end
+    else
+        io.stderr:write("Warning: Unknown API method '" .. args.action .. "'\n")
+    end
+    
     local auth = authToken(args.server_url, args.username, args.password)
     
     -- Build URL
-    local queryString = buildQueryString(args, auth)
+    local queryString = buildQueryString(args, auth, methodDef)
     local url = string.format("%s/server/json.server.php?%s", args.server_url, queryString)
     
     if printUrl == true then
