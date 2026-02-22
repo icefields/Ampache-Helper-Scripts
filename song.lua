@@ -23,7 +23,7 @@ local ampache = require("ampache-common")
 local ampacheHttp = require("ampache-http")
 
 if (ampache.shouldPrintHelp()) then
-    ampache.printHelp("albums.lua")
+    ampache.printHelp("song.lua")
     return
 end
 
@@ -58,4 +58,3 @@ else
     -- Print an error message if the request fails
     print("HTTP request failed with status: " .. status)
 end
-

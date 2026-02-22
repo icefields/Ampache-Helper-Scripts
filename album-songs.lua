@@ -70,4 +70,3 @@ else
     -- Print an error message if the request fails
     print("HTTP request failed with status: " .. status)
 end
-

@@ -65,4 +65,3 @@ local authToken = handshake.getAuthToken(server_url, username, password)
 local reqUrl = server_url.."/server/json.server.php?action=stats&type=album&limit="..validOptions["-s"].."&filter="..validOptions["-f"].."&exact=1&offset=0&hide_search=0&show_dupes=1&auth="..authToken.."&username="..username
 local artList = print_arts.artUrls(reqUrl, false)
 tile_images.tileImages(artList, true)
-

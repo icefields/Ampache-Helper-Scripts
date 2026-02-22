@@ -26,21 +26,21 @@ local function parseUrlArgs(args)
     local filterValue = args.filterValue or ''
     local authToken = args.authToken or nil
     local showDupes = args.showDupes or 1
-    local type = args.type or 'album'
+    local typeValue = args.type or 'album'
     local offset = args.offset or 0
     local exact = args.exact or 0
     local username = args.usernameData or nil
     local include = args.include or nil
-    return serverUrl, action, limit, filterValue, authToken, showDupes, type, offset, exact, username, include
+    return serverUrl, action, limit, filterValue, authToken, showDupes, typeValue, offset, exact, username, include
 end
 
 local function getUrl(args)
-    local serverUrl, action, limit, filterValue, authToken, showDupes, type, offset, exact, username, include =
+    local serverUrl, action, limit, filterValue, authToken, showDupes, typeValue, offset, exact, username, include =
         parseUrlArgs(args)
 
     local url = string.format(
         "%s/server/json.server.php?action=%s&limit=%d&filter=%s&exact=%d&offset=%d&type=%s&show_dupes=%d&auth=%s",
-        serverUrl, action, limit, filterValue, exact, offset, type, showDupes, authToken, username
+        serverUrl, action, limit, filterValue, exact, offset, typeValue, showDupes, authToken
     )
     if username ~= nil then
         url = url .. "&username=" .. ampache.urlencode(username)

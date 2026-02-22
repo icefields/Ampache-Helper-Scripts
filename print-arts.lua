@@ -92,4 +92,3 @@ end
 return {
     artUrls = artUrls
 }
-
