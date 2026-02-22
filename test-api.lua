@@ -55,20 +55,22 @@ local function testCall(actionName, params, expectSuccess)
     -- Merge params
     for k, v in pairs(params or {}) do args[k] = v end
     
-    local success, code_or_err, headers, status, json, data = pcall(ampache_http.makeRequest, args, false)
+    -- Returns: res, code, headers, status, json_str, data
+    local success, res, code, headers, status, json_str, data = pcall(ampache_http.makeRequest, args, false)
     
     if not success then
+        -- res contains the error message
         results.failed = results.failed + 1
-        printStatus("FAIL", string.format("%s - Execution Error: %s", actionName, tostring(code_or_err)))
+        printStatus("FAIL", string.format("%s - Execution Error: %s", actionName, tostring(res)))
         return nil
     end
     
     -- Check result
-    -- We consider it a pass if we get a 200 and valid JSON, or if we expect failure and get one.
+    -- We consider it a pass if we get a 200 and valid JSON (data), or if we expect failure and get one.
     local passed = false
     local reason = ""
     
-    if code_or_err == 200 and data then
+    if code == 200 and data then
         if expectSuccess == false then
             passed = false -- Expected failure but got success? Maybe API logic changed.
             reason = "Expected failure but succeeded"
@@ -79,7 +81,7 @@ local function testCall(actionName, params, expectSuccess)
         if expectSuccess == false then
             passed = true -- Expected failure and got non-200/error
         else
-            reason = status or ("HTTP " .. code_or_err)
+            reason = status or ("HTTP " .. tostring(code))
         end
     end
     
@@ -96,6 +98,7 @@ end
 
 -- Skip list: Methods that are destructive or require specific setup not suitable for automated testing
 local skipList = {
+    ["handshake"] = "Internal method handled by library",
     ["goodbye"] = "Invalidates session, breaking subsequent tests",
     ["user_delete"] = "Destructive",
     ["user_create"] = "Destructive",
@@ -141,6 +144,22 @@ local skipList = {
     ["toggle_follow"] = "Destructive"
 }
 
+-- Helper to safely extract the first ID from a response
+local function getFirstId(data, key)
+    if not data then return nil end
+    local list = data[key]
+    if not list then return nil end
+    if type(list) ~= "table" then return nil end
+    
+    -- Check if it's an array (has [1]) or a single object (has .id)
+    if list[1] and list[1].id then
+        return list[1].id
+    elseif list.id then
+        return list.id
+    end
+    return nil
+end
+
 local function runTests()
     printStatus("INFO", "Starting API Tests...")
     printStatus("INFO", "Connecting to " .. config.server_url)
@@ -155,10 +174,10 @@ local function runTests()
     local playlistsData = testCall("playlists", {limit = 1})
     
     -- Extract IDs for specific tests
-    local artistId = artistsData and artistsData.artist and artistsData.artist[1] and artistsData.artist[1].id
-    local albumId = albumsData and albumsData.album and albumsData.album[1] and albumsData.album[1].id
-    local songId = songsData and songsData.song and songsData.song[1] and songsData.song[1].id
-    local playlistId = playlistsData and playlistsData.playlist and playlistsData.playlist[1] and playlistsData.playlist[1].id
+    local artistId = getFirstId(artistsData, "artist")
+    local albumId = getFirstId(albumsData, "album")
+    local songId = getFirstId(songsData, "song")
+    local playlistId = getFirstId(playlistsData, "playlist")
     
     -- 3. Iterate all methods
     for name, def in pairs(api_methods.methods) do
