@@ -27,55 +27,79 @@ function shouldPrintHelp()
 end
 
 function parseArgs(arg)
-    local limit = 100  -- Default limit
-    local isJsonOutput = false
-    local typeValue = ""  -- Default filter
-    local filterValue = ""  -- Default filter
-    local isPrintUrl = false
-    local include = nil
-    local offset = 0
-    local exact = 0
-    local showDupes = 1
+    local args = {}
     
-    local serverUrl = arg[1]
-    local username = arg[2]
-    local password = arg[3]
+    args.server_url = arg[1]
+    args.username = arg[2]
+    args.password = arg[3]
+
+    -- Default values
+    args.limit = 100
+    args.filter = ""
+    args.type = ""
+    args.offset = 0
+    args.exact = 0
+    args.show_dupes = 1
+    args.is_json_output = false
+    args.is_print_url = false
+    args.include = nil
+    args.hide_search = nil
+    args.add = nil
+    args.update = nil
+    args.cond = nil
+    args.sort = nil
+    args.username_data = nil -- For stats specific username
 
     -- Parse the command-line arguments
     for i = 4, #arg do
         local arg_val = arg[i]
         if arg_val == "-l" then
-            -- Limit argument
-            limit = tonumber(arg[i + 1]) or 100
-            i = i + 1  -- Skip the next argument
+            args.limit = tonumber(arg[i + 1]) or 100
+            i = i + 1
         elseif arg_val == "-f" then
-            -- Filter argument
-            filterValue = arg[i + 1] or ""
-            i = i + 1  -- Skip the next argument
+            args.filter = arg[i + 1] or ""
+            i = i + 1
         elseif arg_val == "-t" then
-            -- Type argument
-            typeValue = arg[i + 1] or ""
-            i = i + 1  -- Skip the next argument
+            args.type = arg[i + 1] or ""
+            i = i + 1
         elseif arg_val == "-i" then
-            include = arg[i + 1]
+            args.include = arg[i + 1]
             i = i + 1
         elseif arg_val == "-j" then
-            isJsonOutput = true
+            args.is_json_output = true
         elseif arg_val == "-d" then
-            isPrintUrl = true
+            args.is_print_url = true
         elseif arg_val == "-o" then
-            offset = tonumber(arg[i + 1]) or 0
+            args.offset = tonumber(arg[i + 1]) or 0
             i = i + 1
         elseif arg_val == "-e" then
-            exact = tonumber(arg[i + 1]) or 0
+            args.exact = tonumber(arg[i + 1]) or 0
             i = i + 1
         elseif arg_val == "-s" then
-            showDupes = tonumber(arg[i + 1]) or 1
+            args.show_dupes = tonumber(arg[i + 1]) or 1
+            i = i + 1
+        elseif arg_val == "-u" then
+            args.username_data = arg[i + 1]
+            i = i + 1
+        elseif arg_val == "--hide-search" then
+            args.hide_search = tonumber(arg[i + 1]) or 1
+            i = i + 1
+        elseif arg_val == "--add" then
+            args.add = arg[i + 1]
+            i = i + 1
+        elseif arg_val == "--update" then
+            args.update = arg[i + 1]
+            i = i + 1
+        elseif arg_val == "--cond" then
+            args.cond = arg[i + 1]
+            i = i + 1
+        elseif arg_val == "--sort" then
+            args.sort = arg[i + 1]
             i = i + 1
         end
     end
 
-    return serverUrl, username, password, limit, filterValue, isJsonOutput, isPrintUrl, include, typeValue, offset, exact, showDupes
+    return args
 end
 
 -- Print the help guide
@@ -91,13 +115,20 @@ Required arguments:
 Optional arguments:
   -l <limit>     Limit the number of items to retrieve (default: 100)
   -f <filter>    Specify the filter for the items
-  -j             Prints the original json from the network response, when this is passed, all other optional args are ignored
-  -t             Type
-  -h             Show this help message
+  -t <type>      Type
+  -i <include>   Include related data (e.g., songs for albums)
+  -j             Prints the original json from the network response
   -d             Print the request url, useful for debugging
   -o <offset>    Set the offset for pagination (default: 0)
   -e <exact>     Set exact match flag (0 or 1, default: 0)
   -s <show_dupes> Show duplicate items (0 or 1, default: 1)
+  -u <username>  Username for stats (specific to stats action)
+  --hide-search <0|1> Hide search results
+  --add <date>   ISO 8601 Date Format (e.g. 2020-09-16)
+  --update <date> ISO 8601 Date Format
+  --cond <string> Additional filters (e.g. 'filter1,value1')
+  --sort <string> Sort name or comma-separated key pair
+  -h             Show this help message
 ]])
 end
 

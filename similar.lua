@@ -27,46 +27,38 @@ if (ampache.shouldPrintHelp()) then
     return
 end
 
-local server_url, username, password, limit, filter_value, is_json_output, isPrintUrl, include, typeValue =
-    ampache.parseArgs(arg)
+local args = ampache.parseArgs(arg)
+args.action = "get_similar"
 
 -- Validate type value
-if typeValue ~= "song" and typeValue ~= "artist" then
+if args.type ~= "song" and args.type ~= "artist" then
     error("Invalid type specified. Valid values are: song, artist")
 end
 
 local res, code, response_headers, status, json_response, data =
-    ampacheHttp.makeRequest({
-        serverUrl = server_url,
-        action = "get_similar",
-        type = typeValue,
-        username = username,
-        password = password,
-        limit = limit,
-        filterValue = filter_value
-    })
+    ampacheHttp.makeRequest(args, args.is_print_url)
 
 if code == 200 then
     -- if the -j option is passed, just print the json file
-    if is_json_output == true then
+    if args.is_json_output == true then
     	print(json_response)
 	    return
     end
 
     -- Check if the response contains the expected data type
-    local items = data[typeValue]
+    local items = data[args.type]
     if not items then
-        print("No " .. typeValue .. " items found in response")
+        print("No " .. args.type .. " items found in response")
         return
     end
 
     for _, item in ipairs(items) do
-        if typeValue == "artist" then
+        if args.type == "artist" then
             ampache.safePrint("name", item.name)
             ampache.safePrint("id", item.id)
             ampache.safePrint("albums", item.albums)
             ampache.safePrint("songcount", item.songcount)
-        elseif typeValue == "song" then
+        elseif args.type == "song" then
             ampache.safePrint("title", item.title)
             ampache.safePrint("id", item.id)
             ampache.safePrint("artist", item.artist.name)
