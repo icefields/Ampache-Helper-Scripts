@@ -12,7 +12,7 @@
 -- -------- https://github.com/icefields --------- --
 -----------------------------------------------------
 
-function shouldPrintHelp()
+local function shouldPrintHelp()
     -- Check for the help flag (-h)
     if arg[1] == "-h" then
         return true
@@ -26,7 +26,7 @@ function shouldPrintHelp()
     return false
 end
 
-function parseArgs(arg)
+local function parseArgs(arg)
     local args = {}
     
     args.server_url = arg[1]
@@ -152,13 +152,13 @@ local function safePrint(label, value)
     end
 end
 
-function urlencode(str)
+local function urlencode(str)
     return (str:gsub("([^%w%-%.%_~])", function(c)
         return string.format("%%%02X", string.byte(c))  -- Replace each non-URL-safe character with its encoded form
     end))
 end
 
-function fileExists(path)
+local function fileExists(path)
     local f = io.open(path, "r")
     if f then
         f:close()

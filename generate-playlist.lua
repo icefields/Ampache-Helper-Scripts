@@ -53,7 +53,7 @@ local res, code, response_headers, status, jsonResponse, data =
 
 local token = ampacheHttp.authToken(server, username, password)
 
-function playlists()
+local function playlists()
     str = ''
     for _, item in ipairs(data["playlist"]) do
         print(item.name)
@@ -62,7 +62,7 @@ function playlists()
     --print(str)
 end
 
-function songUrls()
+local function songUrls()
     for _, item in ipairs(data["playlist"]) do
         if item.name == arg[1] then
             for _, item in ipairs(item.items) do

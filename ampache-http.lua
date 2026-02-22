@@ -258,7 +258,7 @@ local function isTokenExpired(expireStr)
     return now_str >= expireStr:sub(1, 19) -- Compare up to seconds
 end
 
-function authToken(serverUrl, username, password)
+local function authToken(serverUrl, username, password)
     local token, expire = getStoredToken()
     
     if token and not isTokenExpired(expire) then
@@ -275,7 +275,7 @@ function authToken(serverUrl, username, password)
     end
 end
 
-function makeRequest(args, printUrl)
+local function makeRequest(args, printUrl)
     -- Validate required arguments
     if not args.server_url then
         error("Missing required argument: server_url")
@@ -327,7 +327,7 @@ function makeRequest(args, printUrl)
     return makeRequestFromUrl(url)
 end
 
-function streamUrl(serverUrl, username, password, songId, authToken)
+local function streamUrl(serverUrl, username, password, songId, authToken)
     if not songId then
         error("Missing required argument: songId")
     end
