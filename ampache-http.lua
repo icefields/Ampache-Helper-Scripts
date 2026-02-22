@@ -128,7 +128,7 @@ local function buildQueryString(args, authToken, methodDef)
     -- 3. Fallback: Add any other arguments passed that might not be in definition (flexibility)
     for argKey, val in pairs(args) do
         -- Skip internal args
-        if argKey ~= "action" and argKey ~= "serverUrl" and argKey ~= "username" and argKey ~= "password" and argKey ~= "isJsonOutput" and argKey ~= "isPrintUrl" then
+        if argKey ~= "action" and argKey ~= "server_url" and argKey ~= "username" and argKey ~= "password" and argKey ~= "isJsonOutput" and argKey ~= "isPrintUrl" then
             local apiKey = paramMapping[argKey] or argKey
             -- Check if we already added it
             local alreadyAdded = false
@@ -265,8 +265,8 @@ end
 
 local function makeRequest(args, printUrl)
     -- Validate required arguments
-    if not args.serverUrl then
-        error("Missing required argument: serverUrl")
+    if not args.server_url then
+        error("Missing required argument: server_url")
     end
     if not args.action then
         error("Missing required argument: action")
@@ -279,7 +279,7 @@ local function makeRequest(args, printUrl)
     end
     
     -- Validate server URL format
-    if not args.serverUrl:match("^https?://") then
+    if not args.server_url:match("^https?://") then
         error("Invalid server URL format. Must start with http:// or https://")
     end
     
@@ -302,11 +302,11 @@ local function makeRequest(args, printUrl)
         io.stderr:write("Warning: Unknown API method '" .. args.action .. "'\n")
     end
     
-    local auth = authToken(args.serverUrl, args.username, args.password)
+    local auth = authToken(args.server_url, args.username, args.password)
     
     -- Build URL
     local queryString = buildQueryString(args, auth, methodDef)
-    local url = string.format("%s/server/json.server.php?%s", args.serverUrl, queryString)
+    local url = string.format("%s/server/json.server.php?%s", args.server_url, queryString)
     
     if printUrl == true then
         print(url)
