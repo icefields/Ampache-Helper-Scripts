@@ -114,8 +114,8 @@ local api_methods = {
         description = "Gets information about bookmarked media"
     },
     bookmark = {
-        required = {},
-        optional = {"filter", "include"},
+        required = {"filter"},
+        optional = {"include"},
         description = "Gets a single bookmark by bookmark_id"
     },
     bookmark_create = {

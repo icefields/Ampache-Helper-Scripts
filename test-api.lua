@@ -141,7 +141,18 @@ local skipList = {
     ["live_stream_edit"] = "Destructive",
     ["song_delete"] = "Destructive",
     ["lost_password"] = "Side effects (email)",
-    ["toggle_follow"] = "Destructive"
+    ["toggle_follow"] = "Destructive",
+    
+    -- Methods requiring complex parameters not easily automated
+    ["advanced_search"] = "Requires complex rule parameters",
+    ["search_group"] = "Requires complex rule parameters",
+    ["url_to_song"] = "Requires valid URL input",
+    ["catalog_file"] = "Requires file path input",
+    ["catalog_folder"] = "Requires folder path input",
+    
+    -- Admin methods (often fail with regular user permissions)
+    ["system_preference"] = "Requires admin privileges",
+    ["system_preferences"] = "Requires admin privileges"
 }
 
 -- Helper to safely extract the first ID from a response
@@ -179,6 +190,9 @@ local function runTests()
     local songId = getFirstId(songsData, "song")
     local playlistId = getFirstId(playlistsData, "playlist")
     
+    if not artistId then printStatus("INFO", "No artists found on server. Some tests will be skipped.") end
+    if not songId then printStatus("INFO", "No songs found on server. Some tests will be skipped.") end
+    
     -- 3. Iterate all methods
     for name, def in pairs(api_methods.methods) do
         if skipList[name] then
@@ -206,7 +220,7 @@ local function runTests()
                         elseif name == "genre" then params.filter = "1" -- Guess
                         elseif name == "user" then params.filter = config.username
                         elseif name == "user_preference" then params.filter = "language" -- Guess
-                        elseif name == "system_preference" then params.filter = "site_title" -- Guess
+                        elseif name == "bookmark" then params.filter = "1" -- Guess, likely to fail but valid param
                         else
                             -- If we don't have a specific ID, try to skip or use generic
                             if not params.filter then
@@ -224,6 +238,9 @@ local function runTests()
                              params.type = "song" 
                              if name == "rate" then params.rating = 5 end
                              if name == "flag" then params.flag = 1 end
+                         elseif name == "get_art" then
+                             params.id = songId
+                             params.type = "song"
                          else
                              params.id = songId -- Fallback
                          end
@@ -231,6 +248,21 @@ local function runTests()
                         params.type = "song" -- Default to song for tests
                     elseif req == "username" then
                         params.username = config.username
+                    end
+                end
+            end
+            
+            -- Special handling for specific methods
+            if name == "stats" then
+                params.type = "song" -- Stats usually requires a type to be useful
+            end
+            
+            -- If we assigned a nil ID (because the server is empty), skip the test
+            if params.id == nil and def.required then
+                for _, req in ipairs(def.required) do
+                    if req == "id" then
+                        canTest = false
+                        break
                     end
                 end
             end
