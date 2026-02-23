@@ -16,6 +16,7 @@ local http = require("socket.http")
 local ltn12 = require("ltn12")
 local cjson = require("cjson")
 local sha2 = require("sha2")
+local https = require("ssl.https")
 
 -- get the current Unix timestamp
 local function getTimestamp()
@@ -26,8 +27,38 @@ local function calculateSha256(input)
     return sha2.sha256(input)
 end
 
+local function fetchJson(url, maxRedirects)
+    maxRedirects = maxRedirects or 5
+
+    local responseBody = {}
+    local requester = url:match("^https://") and https or http
+
+    local _, code, headers = requester.request{
+        url = url,
+        sink = ltn12.sink.table(responseBody)
+    }
+
+    if code == 301 or code == 302 or code == 307 or code == 308 then
+        if maxRedirects <= 0 then
+            error("Too many redirects (possible http/https loop)")
+        end
+
+        local newUrl = headers.location
+        if not newUrl then
+            error("Redirect without Location header")
+        end
+
+        return fetchJson(newUrl, maxRedirects - 1)
+    end
+
+    if code ~= 200 then
+        error("HTTP request failed with status code " .. tostring(code))
+    end
+
+    return table.concat(responseBody)
+end
 -- fetch JSON from the URL
-local function fetchJson(url)
+local function fetchJson2(url)
     local responseBody = {}
     local _, code, _, _ = http.request{
         url = url,
@@ -57,7 +88,7 @@ local function handshake(serverUrl, username, password)
         auth,
         username
     )
-    return str2Json(fetchJson(url))
+    return str2Json(fetchJson(url, 20))
 end
 
 local function getAuthToken(serverUrl, username, password)
