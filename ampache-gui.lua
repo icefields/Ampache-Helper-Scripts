@@ -100,6 +100,10 @@ end
 -- Load GStreamer for audio playback
 local Gst_status, Gst = pcall(function() return lgi.require('Gst', '1.0') end)
 local playbin = nil
+local is_playing = false
+local playback_queue = {}
+local current_song_index = 0
+
 if Gst_status then
     print("GStreamer loaded successfully.")
     Gst.init(nil)
@@ -115,9 +119,23 @@ if Gst_status then
                 print("GStreamer Error: " .. tostring(err.message))
                 if debug then print("Debug info: " .. debug) end
                 playbin.state = Gst.State.NULL
+                is_playing = false
             elseif message.type == Gst.MessageType.EOS then
                 print("Playback finished.")
-                playbin.state = Gst.State.NULL
+                -- Auto-play next song
+                if current_song_index < #playback_queue then
+                    -- We need a way to trigger the next song. 
+                    -- We'll handle this via a global function or idle add.
+                    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, function()
+                        play_next_song()
+                        return false
+                    end)
+                else
+                    playbin.state = Gst.State.NULL
+                    is_playing = false
+                end
+            elseif message.type == Gst.MessageType.STATE_CHANGED then
+                -- We could update UI here, but simpler to do it on click
             end
             return true -- Keep the watch active
         end)
@@ -138,6 +156,13 @@ App.application_id = 'com.github.icefields.ampache-gui'
 
 local api_client = nil
 local main_window = nil
+
+-- UI Elements for Player
+local player_bar = nil
+local play_pause_button = nil
+local prev_button = nil
+local next_button = nil
+local song_label = nil
 
 -- Helper function to download an image
 local function download_image(url, filename)
@@ -172,6 +197,87 @@ local function format_time(seconds)
     return string.format("%d:%02d", mins, secs)
 end
 
+-- Playback Logic
+local function update_player_ui()
+    if not playbin then return end
+    
+    local current_song = playback_queue[current_song_index]
+    if current_song then
+        song_label.label = string.format("<b>%s</b> - %s", current_song.title or "Unknown", current_song.artist and current_song.artist.name or "Unknown")
+        song_label.use_markup = true
+        player_bar.visible = true
+    else
+        player_bar.visible = false
+    end
+
+    -- Update Play/Pause Icon
+    if is_playing then
+        play_pause_button.image = Gtk.Image { icon_name = "media-playback-pause-symbolic" }
+    else
+        play_pause_button.image = Gtk.Image { icon_name = "media-playback-start-symbolic" }
+    end
+end
+
+local function play_song_at_index(index)
+    if not playbin or index < 1 or index > #playback_queue then 
+        playbin.state = Gst.State.NULL
+        is_playing = false
+        update_player_ui()
+        return 
+    end
+
+    current_song_index = index
+    local song = playback_queue[index]
+    
+    if not api_client.auth or not api_client.server_url then
+        print("Error: API client missing auth token or server URL.")
+        return
+    end
+
+    print("Playing song ID: " .. tostring(song.id))
+    
+    playbin.state = Gst.State.NULL
+    local stream_url = string.format("%s/play/index.php?ssid=%s&type=song&oid=%s", 
+        api_client.server_url, api_client.auth, song.id)
+    
+    print("Stream URL: " .. stream_url)
+    playbin.uri = stream_url
+    playbin.state = Gst.State.PLAYING
+    is_playing = true
+    
+    update_player_ui()
+end
+
+function play_next_song()
+    if current_song_index < #playback_queue then
+        play_song_at_index(current_song_index + 1)
+    else
+        -- End of queue
+        playbin.state = Gst.State.NULL
+        is_playing = false
+        update_player_ui()
+    end
+end
+
+function play_prev_song()
+    if current_song_index > 1 then
+        play_song_at_index(current_song_index - 1)
+    end
+end
+
+function toggle_play_pause()
+    if not playbin then return end
+    
+    if is_playing then
+        playbin.state = Gst.State.PAUSED
+        is_playing = false
+    else
+        playbin.state = Gst.State.PLAYING
+        is_playing = true
+    end
+    update_player_ui()
+end
+
 -- Function to create the Main Window
 local function create_main_window(app)
     print("Creating main window...")
@@ -188,7 +294,6 @@ local function create_main_window(app)
         show_close_button = true,
         decoration_layout = "menu:close"
     }
-    -- Use set_titlebar method instead of property assignment for broader compatibility
     main_window:set_titlebar(header_bar)
 
     -- Back Button (initially hidden)
@@ -206,9 +311,60 @@ local function create_main_window(app)
     }
     header_bar:pack_end(logout_button)
 
+    -- Main Vertical Box to hold content and player bar
+    local main_box = Gtk.Box { orientation = Gtk.Orientation.VERTICAL, spacing = 0 }
+    main_window.child = main_box
+
     -- Main Stack for navigation
     local stack = Gtk.Stack {}
-    main_window.child = stack
+    main_box:pack_start(stack, true, true, 0)
+
+    -- Player Bar
+    player_bar = Gtk.ActionBar {
+        visible = false -- Initially hidden
+    }
+    main_box:pack_start(player_bar, false, false, 0)
+
+    prev_button = Gtk.Button {
+        image = Gtk.Image { icon_name = "media-skip-backward-symbolic" },
+        always_show_image = true,
+        tooltip_text = "Previous"
+    }
+    
+    play_pause_button = Gtk.Button {
+        image = Gtk.Image { icon_name = "media-playback-start-symbolic" },
+        always_show_image = true,
+        tooltip_text = "Play/Pause"
+    }
+    
+    next_button = Gtk.Button {
+        image = Gtk.Image { icon_name = "media-skip-forward-symbolic" },
+        always_show_image = true,
+        tooltip_text = "Next"
+    }
+
+    song_label = Gtk.Label { 
+        label = "Not Playing", 
+        ellipsize = "END",
+        halign = Gtk.Align.START,
+        margin_start = 10
+    }
+
+    player_bar:pack_start(prev_button)
+    player_bar:pack_start(play_pause_button)
+    player_bar:pack_start(next_button)
+    player_bar:pack_start(song_label)
+
+    -- Connect Player Buttons
+    function prev_button:on_clicked()
+        play_prev_song()
+    end
+    function play_pause_button:on_clicked()
+        toggle_play_pause()
+    end
+    function next_button:on_clicked()
+        play_next_song()
+    end
 
     -- Map to store album data associated with FlowBox children
     local album_map = {}
@@ -261,6 +417,16 @@ local function create_main_window(app)
     album_info_box:pack_start(album_artist_label, false, false, 0)
     album_info_box:pack_start(album_year_label, false, false, 0)
     album_info_box:pack_start(album_extra_label, false, false, 0)
+
+    -- Play Album Button
+    local play_album_button = Gtk.Button {
+        label = "Play Album",
+        image = Gtk.Image { icon_name = "media-playback-start-symbolic" },
+        always_show_image = true,
+        tooltip_text = "Play all songs in this album",
+        margin_top = 5
+    }
+    album_info_box:pack_start(play_album_button, false, false, 0)
 
     album_header_box:pack_start(album_art_image, false, false, 0)
     album_header_box:pack_start(album_info_box, true, true, 0)
@@ -387,7 +553,20 @@ local function create_main_window(app)
 
             print("Found " .. #data.song .. " songs for album " .. (album.name or "ID " .. album.id))
             
-            for _, song in ipairs(data.song) do
+            -- Store songs for the "Play Album" button
+            local album_songs = data.song
+
+            -- Update Play Album Button callback
+            -- We disconnect previous handlers by creating a new button or checking connections, 
+            -- but here we just overwrite the 'on_clicked' function reference.
+            -- Note: This simple overwrite works if we don't chain multiple handlers.
+            function play_album_button:on_clicked()
+                if not playbin then return end
+                playback_queue = album_songs
+                play_song_at_index(1)
+            end
+
+            for _, song in ipairs(album_songs) do
                 local row = Gtk.ListBoxRow {}
                 local hbox = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL, spacing = 10, margin = 5 }
                 
@@ -426,25 +605,11 @@ local function create_main_window(app)
                         return
                     end
                     
-                    -- Check if api_client exposes auth and server_url
-                    if not api_client.auth or not api_client.server_url then
-                        print("Error: API client missing auth token or server URL.")
-                        return
-                    end
-
-                    print("Playing song ID: " .. tostring(song.id))
-                    
-                    -- Stop current playback
-                    playbin.state = Gst.State.NULL
-                    
-                    -- Construct Stream URL
-                    -- Format: http://server/play/index.php?ssid=AUTH&type=song&oid=ID
-                    local stream_url = string.format("%s/play/index.php?ssid=%s&type=song&oid=%s", 
-                        api_client.server_url, api_client.auth, song.id)
-                    
-                    print("Stream URL: " .. stream_url)
-                    playbin.uri = stream_url
-                    playbin.state = Gst.State.PLAYING
+                    -- Set queue to this single song (or we could play the whole album starting here)
+                    -- User requested: "Play button on the song list item... to play the audio from the song"
+                    -- Interpretation: Single song play replaces queue.
+                    playback_queue = { song }
+                    play_song_at_index(1)
                 end
 
                 hbox:pack_start(track_label, false, false, 0)
