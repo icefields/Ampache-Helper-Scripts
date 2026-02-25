@@ -30,18 +30,17 @@ package.path = script_dir .. "/?.lua;" .. package.path
 -- Path for storing credentials (using Home directory for reliability)
 local home_dir = os.getenv("HOME") or os.getenv("USERPROFILE") or "."
 local config_path = home_dir .. "/.ampache_gui_config"
+print("Config path: " .. config_path)
 
 -- Helper function to save configuration
 local function save_config(url, user, pass)
-    local ok, err = pcall(function()
-        local file = io.open(config_path, "w")
-        if not file then error("Could not open file for writing") end
+    local file, err = io.open(config_path, "w")
+    if file then
         file:write(string.format("return { url = %q, user = %q, password = %q }", url, user, pass))
         file:close()
         print("Credentials saved to " .. config_path)
-    end)
-    if not ok then
-        print("Failed to save credentials: " .. tostring(err))
+    else
+        print("Failed to save credentials to " .. config_path .. ": " .. tostring(err))
     end
 end
 
@@ -679,10 +678,12 @@ local function create_main_window(app)
         local current = main_stack.visible_child_name
         if current == "album_detail" then
             main_stack.visible_child_name = "albums"
-            Gtk.Container.child_set_property(main_stack, album_detail_box, "title", "")
+            local title_val = GObject.Value(GObject.Type.STRING, "")
+            Gtk.Container.child_set_property(main_stack, album_detail_box, "title", title_val)
         elseif current == "playlist_detail" then
             main_stack.visible_child_name = "playlists"
-            Gtk.Container.child_set_property(main_stack, playlist_detail_box, "title", "")
+            local title_val = GObject.Value(GObject.Type.STRING, "")
+            Gtk.Container.child_set_property(main_stack, playlist_detail_box, "title", title_val)
         end
         header_bar.title = "Ampache"
     end
@@ -707,8 +708,9 @@ local function create_main_window(app)
         for _, child in ipairs(children) do album_songs_listbox:remove(child) end
 
         header_bar.title = album.name or "Album"
-        -- Use static method to set child property to avoid LGI quirks
-        Gtk.Container.child_set_property(main_stack, album_detail_box, "title", album.name or "")
+        -- Use GObject.Value for child_set_property
+        local title_val = GObject.Value(GObject.Type.STRING, album.name or "")
+        Gtk.Container.child_set_property(main_stack, album_detail_box, "title", title_val)
         
         album_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(album.name or "Unknown") .. "</span>"
         album_artist_label.label = "by " .. escape_markup(album.artist and album.artist.name or "Unknown Artist")
@@ -817,8 +819,9 @@ local function create_main_window(app)
         for _, child in ipairs(children) do playlist_songs_listbox:remove(child) end
 
         header_bar.title = playlist.name or "Playlist"
-        -- Use static method to set child property to avoid LGI quirks
-        Gtk.Container.child_set_property(main_stack, playlist_detail_box, "title", playlist.name or "")
+        -- Use GObject.Value for child_set_property
+        local title_val = GObject.Value(GObject.Type.STRING, playlist.name or "")
+        Gtk.Container.child_set_property(main_stack, playlist_detail_box, "title", title_val)
         
         playlist_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(playlist.name or "Unknown") .. "</span>"
         playlist_extra_label.label = "Total items: " .. (playlist.items or "N/A")
