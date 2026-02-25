@@ -18,6 +18,9 @@ local ltn12 = require('ltn12')
 
 print("Initializing Ampache GUI...")
 
+-- Initialize random seed
+math.randomseed(os.time())
+
 -- Setup package path to find local modules
 local info = debug.getinfo(1, "S")
 local script_path = info.source:match("^@(.+)") or info.source
@@ -103,6 +106,10 @@ local playbin = nil
 local is_playing = false
 local playback_queue = {}
 local current_song_index = 0
+local is_shuffle = false
+local is_repeat = false
+local progress_timeout_id = nil
+local is_seeking = false
 
 if Gst_status then
     print("GStreamer loaded successfully.")
@@ -120,18 +127,10 @@ if Gst_status then
                 if debug then print("Debug info: " .. debug) end
                 playbin.state = Gst.State.NULL
                 is_playing = false
+                if progress_timeout_id then GLib.source_remove(progress_timeout_id) end
             elseif message.type == Gst.MessageType.EOS then
                 print("Playback finished.")
-                -- Auto-play next song
-                if current_song_index < #playback_queue then
-                    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, function()
-                        play_next_song()
-                        return false
-                    end)
-                else
-                    playbin.state = Gst.State.NULL
-                    is_playing = false
-                end
+                play_next_song()
             end
             return true -- Keep the watch active
         end)
@@ -159,6 +158,11 @@ local play_pause_button = nil
 local prev_button = nil
 local next_button = nil
 local song_label = nil
+local shuffle_button = nil
+local repeat_button = nil
+local progress_scale = nil
+local current_time_label = nil
+local total_time_label = nil
 
 -- UI Elements for Navigation
 local main_stack = nil
@@ -195,7 +199,7 @@ end
 local function format_time(seconds)
     if not seconds or type(seconds) ~= "number" then return "--:--" end
     local mins = math.floor(seconds / 60)
-    local secs = seconds % 60
+    local secs = math.floor(seconds % 60)
     return string.format("%d:%02d", mins, secs)
 end
 
@@ -218,12 +222,46 @@ local function update_player_ui()
     else
         play_pause_button.image = Gtk.Image { icon_name = "media-playback-start-symbolic" }
     end
+
+    -- Update Shuffle/Repeat Icons
+    if is_shuffle then
+        shuffle_button.image = Gtk.Image { icon_name = "media-playlist-shuffle-symbolic" }
+    else
+        shuffle_button.image = Gtk.Image { icon_name = "media-playlist-consecutive-symbolic" } -- Or a dimmed version
+    end
+
+    if is_repeat then
+        repeat_button.image = Gtk.Image { icon_name = "media-playlist-repeat-symbolic" }
+    else
+        repeat_button.image = Gtk.Image { icon_name = "media-playlist-normal-symbolic" } -- Or a dimmed version
+    end
+end
+
+local function update_progress_bar()
+    if not playbin or is_seeking then return true end -- Keep timer running
+    
+    local ok, position = playbin:query_position(Gst.Format.TIME)
+    local ok_dur, duration = playbin:query_duration(Gst.Format.TIME)
+
+    if ok and ok_dur then
+        local pos_sec = position / 1000000000
+        local dur_sec = duration / 1000000000
+        
+        progress_scale.adjustment.upper = dur_sec
+        progress_scale.adjustment.value = pos_sec
+        
+        current_time_label.label = format_time(pos_sec)
+        total_time_label.label = format_time(dur_sec)
+    end
+    
+    return true -- Continue timeout
 end
 
 local function play_song_at_index(index)
     if not playbin or index < 1 or index > #playback_queue then 
         if playbin then playbin.state = Gst.State.NULL end
         is_playing = false
+        if progress_timeout_id then GLib.source_remove(progress_timeout_id) end
         update_player_ui()
         return 
     end
@@ -247,23 +285,60 @@ local function play_song_at_index(index)
     playbin.state = Gst.State.PLAYING
     is_playing = true
     
+    -- Start progress timer
+    if progress_timeout_id then GLib.source_remove(progress_timeout_id) end
+    progress_timeout_id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, update_progress_bar)
+    
     update_player_ui()
 end
 
 function play_next_song()
-    if current_song_index < #playback_queue then
-        play_song_at_index(current_song_index + 1)
-    else
+    if #playback_queue == 0 then
         if playbin then playbin.state = Gst.State.NULL end
         is_playing = false
         update_player_ui()
+        return
     end
+
+    local next_index = 0
+    
+    if is_shuffle then
+        next_index = math.random(1, #playback_queue)
+    else
+        next_index = current_song_index + 1
+        if next_index > #playback_queue then
+            if is_repeat then
+                next_index = 1
+            else
+                if playbin then playbin.state = Gst.State.NULL end
+                is_playing = false
+                update_player_ui()
+                return
+            end
+        end
+    end
+    
+    play_song_at_index(next_index)
 end
 
 function play_prev_song()
-    if current_song_index > 1 then
-        play_song_at_index(current_song_index - 1)
+    if #playback_queue == 0 then return end
+    
+    -- Simple previous: just go back one index. 
+    -- (Does not support history stack for shuffle)
+    local prev_index = current_song_index - 1
+    if prev_index < 1 then
+        if is_repeat then
+            prev_index = #playback_queue
+        else
+            prev_index = 1 -- Restart current or stop? Usually restart current or stop. Let's stop.
+            if playbin then playbin.state = Gst.State.NULL end
+            is_playing = false
+            update_player_ui()
+            return
+        end
     end
+    play_song_at_index(prev_index)
 end
 
 function toggle_play_pause()
@@ -276,6 +351,16 @@ function toggle_play_pause()
         playbin.state = Gst.State.PLAYING
         is_playing = true
     end
+    update_player_ui()
+end
+
+function toggle_shuffle()
+    is_shuffle = not is_shuffle
+    update_player_ui()
+end
+
+function toggle_repeat()
+    is_repeat = not is_repeat
     update_player_ui()
 end
 
@@ -350,6 +435,18 @@ local function create_main_window(app)
         tooltip_text = "Next"
     }
 
+    shuffle_button = Gtk.Button {
+        image = Gtk.Image { icon_name = "media-playlist-consecutive-symbolic" }, -- Icon changes based on state
+        always_show_image = true,
+        tooltip_text = "Toggle Shuffle"
+    }
+
+    repeat_button = Gtk.Button {
+        image = Gtk.Image { icon_name = "media-playlist-normal-symbolic" }, -- Icon changes based on state
+        always_show_image = true,
+        tooltip_text = "Toggle Repeat"
+    }
+
     song_label = Gtk.Label { 
         label = "Not Playing", 
         ellipsize = "END",
@@ -357,15 +454,65 @@ local function create_main_window(app)
         margin_start = 10
     }
 
+    -- Progress Bar Area
+    current_time_label = Gtk.Label { label = "0:00", margin_end = 5 }
+    total_time_label = Gtk.Label { label = "0:00", margin_start = 5 }
+    
+    progress_scale = Gtk.Scale {
+        orientation = Gtk.Orientation.HORIZONTAL,
+        adjustment = Gtk.Adjustment { lower = 0, upper = 100, step_increment = 1, page_increment = 10, value = 0 },
+        draw_value = false,
+        hexpand = true
+    }
+
     player_bar:pack_start(prev_button)
     player_bar:pack_start(play_pause_button)
     player_bar:pack_start(next_button)
+    player_bar:pack_start(shuffle_button)
+    player_bar:pack_start(repeat_button)
     player_bar:pack_start(song_label)
-
+    
+    -- Pack progress bar at the end or in a separate box?
+    -- ActionBar puts items at start/end. Let's put time/progress in a center box.
+    local progress_box = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL, spacing = 5, hexpand = true }
+    progress_box:pack_start(current_time_label, false, false, 0)
+    progress_box:pack_start(progress_scale, true, true, 0)
+    progress_box:pack_start(total_time_label, false, false, 0)
+    
+    -- ActionBar doesn't have a 'center' area by default in Lua LGI easily, 
+    -- but we can pack it as a regular widget if we use a Box instead of ActionBar.
+    -- However, ActionBar is convenient. Let's just pack it at the end.
+    player_bar:pack_end(progress_box) -- This might not align correctly visually.
+    -- Actually, ActionBar packs start/end. Let's put controls at start, progress at end.
+    
+    -- Re-arranging:
+    -- Start: Prev, Play, Next, Shuffle, Repeat, Song Label
+    -- End: Time, Scale, Time
+    
     -- Connect Player Buttons
     function prev_button:on_clicked() play_prev_song() end
     function play_pause_button:on_clicked() toggle_play_pause() end
     function next_button:on_clicked() play_next_song() end
+    function shuffle_button:on_clicked() toggle_shuffle() end
+    function repeat_button:on_clicked() toggle_repeat() end
+
+    -- Seek Logic
+    function progress_scale:on_button_press_event(event)
+        is_seeking = true
+        return false
+    end
+
+    function progress_scale:on_button_release_event(event)
+        is_seeking = false
+        if not playbin then return false end
+        
+        local value = progress_scale.adjustment.value
+        local position_ns = value * 1000000000
+        
+        -- Seek to position
+        playbin:seek(1.0, Gst.Format.TIME, Gst.SeekFlags.FLUSH + Gst.SeekFlags.KEY_UNIT, Gst.SeekType.SET, position_ns, Gst.SeekType.NONE, 0)
+        return false
+    end
 
     -- ==========================================
     -- PAGE: ALBUMS LIST
