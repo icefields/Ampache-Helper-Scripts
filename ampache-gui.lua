@@ -1063,16 +1063,11 @@ local function create_login_window(app)
             -- Save session to DB
             if db_conn then
                 print("Saving session to database...")
-                -- We need the token and expire time from the handshake.
-                -- The client.new calls handshake.getAuthToken which stores in file, but we want DB.
-                -- We can retrieve it from the client object or re-fetch.
-                -- Ideally, handshake returns the full JSON.
-                -- For now, let's just save what we have. 
-                -- We'll update the handshake module to return the full response later if needed.
-                -- For now, we save the credentials. The token is saved in the file by handshake.lua.
-                -- We will update the DB in the next step.
-                -- Actually, let's just save credentials here.
-                db.save_session(db_conn, url, user, pass_hash, nil, nil)
+                -- Retrieve token and expire from client if available
+                local token = api_client.auth
+                local expire = api_client.expire -- Attempt to get expire time
+                
+                db.save_session(db_conn, url, user, pass_hash, token, expire)
                 
                 -- Fetch user info
                 local _, user_code, _, _, _, user_res = api_client:user({})
@@ -1109,6 +1104,7 @@ function App:on_activate()
     local session = db.load_session(db_conn)
     if session and session.server_url and session.username and session.password_hash then
         print("Found saved credentials. Attempting auto-login...")
+        print("Server: " .. session.server_url .. ", User: " .. session.username)
         local ok, err = pcall(function()
             api_client = client.new(session.server_url, session.username, nil, session.password_hash)
             local _, code = api_client:albums({limit = 1})
