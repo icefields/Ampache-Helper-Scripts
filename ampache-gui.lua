@@ -276,7 +276,18 @@ local function create_main_window(app)
         -- Update Album Info
         album_title_label.label = "<span size='x-large' weight='bold'>" .. (album.name or "Unknown") .. "</span>"
         album_artist_label.label = "by " .. (album.artist and album.artist.name or "Unknown Artist")
-        album_year_label.label = "Year: " .. (album.year or "N/A")
+        
+        -- Format Year as integer
+        local year_str = "N/A"
+        if album.year then
+            local y = tonumber(album.year)
+            if y then
+                year_str = string.format("%d", y)
+            else
+                year_str = tostring(album.year)
+            end
+        end
+        album_year_label.label = "Year: " .. year_str
         
         local extra_text = ""
         if album.playcount then extra_text = extra_text .. "Plays: " .. album.playcount .. "  " end
@@ -327,7 +338,11 @@ local function create_main_window(app)
             -- Use 'album_songs' method via the generic request function
             local res, code, h, s, j, data = api_client:request('album_songs', { filter = album.id })
             
-            songs_listbox:remove(loading_song_label)
+            -- Clear loading indicator (ListBox wraps it in a row, so we clear all children)
+            local children = songs_listbox:get_children()
+            for _, child in ipairs(children) do
+                songs_listbox:remove(child)
+            end
 
             if code ~= 200 or not data or not data.song then
                 local err_label = Gtk.Label { label = "Error loading songs or album is empty.", margin = 10 }
