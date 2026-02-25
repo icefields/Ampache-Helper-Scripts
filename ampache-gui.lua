@@ -27,35 +27,57 @@ local script_path = info.source:match("^@(.+)") or info.source
 local script_dir = script_path:match("^(.*[\\/])") or "."
 package.path = script_dir .. "/?.lua;" .. package.path
 
--- Path for storing credentials (using Home directory for reliability)
-local home_dir = os.getenv("HOME") or os.getenv("USERPROFILE") or "."
-local config_path = home_dir .. "/.ampache_gui_config"
+-- Path for storing credentials
+local home_dir = os.getenv("HOME") or os.getenv("USERPROFILE")
+local config_dir = home_dir or script_dir
+if not home_dir then
+    print("Home directory not found, using script directory: " .. config_dir)
+end
+local config_path = config_dir .. "/.ampache_gui_config"
 print("Config path: " .. config_path)
 
 -- Helper function to save configuration
 local function save_config(url, user, pass)
     local file, err = io.open(config_path, "w")
-    if file then
-        file:write(string.format("return { url = %q, user = %q, password = %q }", url, user, pass))
-        file:close()
-        print("Credentials saved to " .. config_path)
-    else
-        print("Failed to save credentials to " .. config_path .. ": " .. tostring(err))
+    if not file then
+        print("Failed to open config file for writing: " .. config_path .. " Error: " .. tostring(err))
+        return
     end
+    
+    local content = string.format("return { url = %q, user = %q, password = %q }", url, user, pass)
+    file:write(content)
+    file:close()
+    print("Credentials saved to " .. config_path)
 end
 
 -- Helper function to load configuration
 local function load_config()
-    if not lfs.attributes(config_path) then
-        print("Config file not found at " .. config_path)
+    local file, err = io.open(config_path, "r")
+    if not file then
+        print("Config file not found or cannot be opened: " .. tostring(err))
         return nil
     end
-    local ok, data = pcall(dofile, config_path)
+    
+    local content = file:read("*a")
+    file:close()
+    
+    if not content or content == "" then
+        print("Config file is empty.")
+        return nil
+    end
+    
+    local func, load_err = load(content, "config")
+    if not func then
+        print("Failed to parse config file: " .. tostring(load_err))
+        return nil
+    end
+    
+    local ok, data = pcall(func)
     if ok and type(data) == "table" then
         print("Config loaded successfully.")
         return data
     else
-        print("Failed to load config: " .. tostring(data))
+        print("Failed to execute config or config is not a table: " .. tostring(data))
         return nil
     end
 end
@@ -1107,7 +1129,7 @@ function App:on_activate()
     local config = load_config()
     if config then
         print("Found saved credentials. Attempting auto-login...")
-        local ok, _ = pcall(function()
+        local ok, err = pcall(function()
             api_client = client.new(config.url, config.user, config.password)
             local _, code = api_client:albums({limit = 1})
             if code ~= 200 then error("Auto-login failed") end
@@ -1118,7 +1140,7 @@ function App:on_activate()
             create_main_window(self)
             return
         else
-            print("Auto-login failed. Showing login window.")
+            print("Auto-login failed: " .. tostring(err))
             api_client = nil
         end
     end
