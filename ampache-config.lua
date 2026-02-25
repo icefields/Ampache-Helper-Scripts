@@ -1,1 +1,1 @@
-return { url = "https://powerampache.devilplan.com", user = "luci3", password = "testtest3" }
+return { url = "https://your.server.url", user = "user", password = "youtpasswordforautologin" }
