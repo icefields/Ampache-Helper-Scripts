@@ -203,13 +203,21 @@ local function format_time(seconds)
     return string.format("%d:%02d", mins, secs)
 end
 
+-- Helper to escape Pango markup
+local function escape_markup(text)
+    if not text then return "" end
+    return text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+end
+
 -- Playback Logic
 local function update_player_ui()
     if not playbin then return end
     
     local current_song = playback_queue[current_song_index]
     if current_song then
-        song_label.label = string.format("<b>%s</b> - %s", current_song.title or "Unknown", current_song.artist and current_song.artist.name or "Unknown")
+        local title = escape_markup(current_song.title or "Unknown")
+        local artist = escape_markup(current_song.artist and current_song.artist.name or "Unknown")
+        song_label.label = string.format("<b>%s</b> - %s", title, artist)
         song_label.use_markup = true
         player_bar.visible = true
     else
@@ -243,7 +251,7 @@ local function update_progress_bar()
     local ok, position = playbin:query_position(Gst.Format.TIME)
     local ok_dur, duration = playbin:query_duration(Gst.Format.TIME)
 
-    if ok and ok_dur then
+    if ok and ok_dur and type(position) == "number" and type(duration) == "number" and duration > 0 then
         local pos_sec = position / 1000000000
         local dur_sec = duration / 1000000000
         
@@ -689,8 +697,8 @@ local function create_main_window(app)
 
         header_bar.title = album.name or "Album"
         
-        album_title_label.label = "<span size='x-large' weight='bold'>" .. (album.name or "Unknown") .. "</span>"
-        album_artist_label.label = "by " .. (album.artist and album.artist.name or "Unknown Artist")
+        album_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(album.name or "Unknown") .. "</span>"
+        album_artist_label.label = "by " .. escape_markup(album.artist and album.artist.name or "Unknown Artist")
         
         local year_str = "N/A"
         if album.year then
@@ -795,7 +803,7 @@ local function create_main_window(app)
 
         header_bar.title = playlist.name or "Playlist"
         
-        playlist_title_label.label = "<span size='x-large' weight='bold'>" .. (playlist.name or "Unknown") .. "</span>"
+        playlist_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(playlist.name or "Unknown") .. "</span>"
         playlist_extra_label.label = "Total items: " .. (playlist.items or "N/A")
 
         -- Load Art
