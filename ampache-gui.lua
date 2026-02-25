@@ -107,22 +107,24 @@ if Gst_status then
     if not playbin then
         print("Warning: Could not create GStreamer playbin. Playback disabled.")
     else
-        -- Setup Bus to catch errors
+        -- Setup Bus watch to catch errors and EOS
         local bus = playbin:get_bus()
-        bus:add_signal_watch()
-        
-        -- Use GObject.signal_connect for broader compatibility
-        GObject.signal_connect(bus, 'message::error', function(self, message)
-            local err, debug = message:parse_error()
-            print("GStreamer Error: " .. tostring(err.message))
-            if debug then print("Debug info: " .. debug) end
-            playbin.state = Gst.State.NULL
+        local watch_id = bus:add_watch(GLib.PRIORITY_DEFAULT, function(self, message)
+            if message.type == Gst.MessageType.ERROR then
+                local err, debug = message:parse_error()
+                print("GStreamer Error: " .. tostring(err.message))
+                if debug then print("Debug info: " .. debug) end
+                playbin.state = Gst.State.NULL
+            elseif message.type == Gst.MessageType.EOS then
+                print("Playback finished.")
+                playbin.state = Gst.State.NULL
+            end
+            return true -- Keep the watch active
         end)
         
-        GObject.signal_connect(bus, 'message::eos', function(self, message)
-            print("Playback finished.")
-            playbin.state = Gst.State.NULL
-        end)
+        if not watch_id then
+            print("Warning: Failed to add GStreamer bus watch. Errors will not be reported.")
+        end
     end
 else
     print("Warning: GStreamer (Gst 1.0) not found. Audio playback will be disabled.")
