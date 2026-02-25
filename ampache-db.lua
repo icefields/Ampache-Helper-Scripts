@@ -32,6 +32,11 @@ local function ensure_dir_exists(path)
     end
 end
 
+-- Helper to escape single quotes for SQL
+local function escape_sql(s)
+    return (s or ""):gsub("'", "''")
+end
+
 function M.init()
     ensure_dir_exists(db_path)
     local db, err = env:connect(db_path)
@@ -72,13 +77,11 @@ function M.save_session(db, server_url, username, password_hash, token, expire)
     -- Clear existing session (we only support one active session)
     db:execute("DELETE FROM session")
     
-    local stmt = db:prepare[[
-        INSERT INTO session (id, server_url, username, password_hash, token, token_expire)
-        VALUES (0, ?, ?, ?, ?, ?)
-    ]]
-    stmt:bind(server_url, username, password_hash, token, expire)
-    stmt:execute()
-    stmt:close()
+    local sql = string.format(
+        "INSERT INTO session (id, server_url, username, password_hash, token, token_expire) VALUES (0, '%s', '%s', '%s', '%s', '%s')",
+        escape_sql(server_url), escape_sql(username), escape_sql(password_hash), escape_sql(token), escape_sql(expire)
+    )
+    db:execute(sql)
 end
 
 function M.load_session(db)
@@ -96,27 +99,21 @@ function M.save_user(db, user_data)
     if not user_data or not user_data.id then return end
     
     -- Simple upsert: delete then insert
-    local del_stmt = db:prepare("DELETE FROM user WHERE id = ?")
-    del_stmt:bind(user_data.id)
-    del_stmt:execute()
-    del_stmt:close()
+    local del_sql = string.format("DELETE FROM user WHERE id = %d", user_data.id)
+    db:execute(del_sql)
 
-    local ins_stmt = db:prepare[[
-        INSERT INTO user (id, username, fullname, email, access, disabled, last_seen, create_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ]]
-    ins_stmt:bind(
+    local ins_sql = string.format(
+        "INSERT INTO user (id, username, fullname, email, access, disabled, last_seen, create_date) VALUES (%d, '%s', '%s', '%s', %d, %d, '%s', '%s')",
         user_data.id,
-        user_data.username,
-        user_data.fullname or "",
-        user_data.email or "",
+        escape_sql(user_data.username),
+        escape_sql(user_data.fullname or ""),
+        escape_sql(user_data.email or ""),
         user_data.access or 0,
         user_data.disabled or 0,
-        user_data.last_seen or "",
-        user_data.create_date or ""
+        escape_sql(user_data.last_seen or ""),
+        escape_sql(user_data.create_date or "")
     )
-    ins_stmt:execute()
-    ins_stmt:close()
+    db:execute(ins_sql)
 end
 
 function M.get_user(db)
