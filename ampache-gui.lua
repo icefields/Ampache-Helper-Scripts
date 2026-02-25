@@ -613,7 +613,7 @@ local function create_main_window(app)
     album_detail_box:pack_start(album_header_box, false, false, 0)
     album_detail_box:pack_start(album_songs_scrolled, true, true, 0)
     
-    main_stack:add_titled(album_detail_box, "album_detail", "Album")
+    main_stack:add_titled(album_detail_box, "album_detail", "")
 
     -- ==========================================
     -- PAGE: PLAYLIST DETAIL
@@ -649,7 +649,7 @@ local function create_main_window(app)
     playlist_detail_box:pack_start(playlist_header_box, false, false, 0)
     playlist_detail_box:pack_start(playlist_songs_scrolled, true, true, 0)
     
-    main_stack:add_titled(playlist_detail_box, "playlist_detail", "Playlist")
+    main_stack:add_titled(playlist_detail_box, "playlist_detail", "")
 
     -- ==========================================
     -- LOGIC & CALLBACKS
@@ -669,8 +669,10 @@ local function create_main_window(app)
         local current = main_stack.visible_child_name
         if current == "album_detail" then
             main_stack.visible_child_name = "albums"
+            main_stack:set_title(album_detail_box, "")
         elseif current == "playlist_detail" then
             main_stack.visible_child_name = "playlists"
+            main_stack:set_title(playlist_detail_box, "")
         end
         header_bar.title = "Ampache"
     end
@@ -693,7 +695,7 @@ local function create_main_window(app)
         for _, child in ipairs(children) do album_songs_listbox:remove(child) end
 
         header_bar.title = album.name or "Album"
-        main_stack.child_set_property(album_detail_box, "title", album.name or "Album")
+        main_stack:set_title(album_detail_box, album.name or "")
         
         album_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(album.name or "Unknown") .. "</span>"
         album_artist_label.label = "by " .. escape_markup(album.artist and album.artist.name or "Unknown Artist")
@@ -800,7 +802,7 @@ local function create_main_window(app)
         for _, child in ipairs(children) do playlist_songs_listbox:remove(child) end
 
         header_bar.title = playlist.name or "Playlist"
-        main_stack.child_set_property(playlist_detail_box, "title", playlist.name or "Playlist")
+        main_stack:set_title(playlist_detail_box, playlist.name or "")
         
         playlist_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(playlist.name or "Unknown") .. "</span>"
         playlist_extra_label.label = "Total items: " .. (playlist.items or "N/A")
