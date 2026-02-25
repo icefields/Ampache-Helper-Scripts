@@ -651,7 +651,7 @@ local function create_main_window(app)
         playlist_title_label.label = "<span size='x-large' weight='bold'>" .. (playlist.name or "Unknown") .. "</span>"
         playlist_extra_label.label = "Total items: " .. (playlist.items or "N/A")
 
-        -- Playlists might not have art, but we try
+        -- Load Art
         local img_path = nil
         if playlist.art then
             local temp_dir = "temp_images"
@@ -798,11 +798,46 @@ local function create_main_window(app)
 
         playlist_flowbox:remove(loading_playlists_label)
 
+        -- Sort Playlists: Flagged > Rating > Date Added
+        table.sort(data.playlist, function(a, b)
+            -- 1. Flag (Liked)
+            local a_flag = (a.flag == true or a.flag == 1)
+            local b_flag = (b.flag == true or b.flag == 1)
+            if a_flag ~= b_flag then return a_flag end
+
+            -- 2. Rating
+            local a_rating = tonumber(a.rating) or 0
+            local b_rating = tonumber(b.rating) or 0
+            if a_rating ~= b_rating then return a_rating > b_rating end
+
+            -- 3. Date Added
+            local a_add = a.add or ""
+            local b_add = b.add or ""
+            if a_add ~= b_add then return a_add > b_add end
+
+            return false
+        end)
+
         for _, playlist in ipairs(data.playlist) do
             local box = Gtk.Box { orientation = Gtk.Orientation.VERTICAL, spacing = 5, margin = 5, width_request = 150 }
             
-            -- Playlists usually don't have art in the list, use a generic icon
-            local image_widget = Gtk.Image { icon_name = 'audio-x-generic', pixel_size = 150 }
+            -- Load Playlist Art
+            local img_path = nil
+            if playlist.art then
+                local temp_dir = "temp_images"
+                if not lfs.attributes(temp_dir) then lfs.mkdir(temp_dir) end
+                local filename = temp_dir .. "/pl_" .. (playlist.id or os.time()) .. ".jpg"
+                if not lfs.attributes(filename) then pcall(download_image, playlist.art, filename) end
+                if lfs.attributes(filename) then img_path = filename end
+            end
+
+            local image_widget
+            if img_path then
+                local ok, pixbuf = pcall(GdkPixbuf.Pixbuf.new_from_file_at_size, img_path, 150, 150)
+                if ok then image_widget = Gtk.Image { pixbuf = pixbuf } else image_widget = Gtk.Image { icon_name = 'audio-x-generic', pixel_size = 150 } end
+            else
+                image_widget = Gtk.Image { icon_name = 'audio-x-generic', pixel_size = 150 }
+            end
             
             local name_label = Gtk.Label { label = playlist.name or "Unknown", ellipsize = 'END', max_width_chars = 20, tooltip_text = playlist.name }
             local items_label = Gtk.Label { label = (playlist.items or "0") .. " items", ellipsize = 'END', max_width_chars = 20, sensitive = false }
