@@ -12,11 +12,6 @@
 -- -------- https://github.com/icefields --------- --
 -----------------------------------------------------
 
-local lgi = require('lgi')
-local Gtk = lgi.Gtk
-local Gdk = lgi.Gdk
-local GdkPixbuf = lgi.GdkPixbuf
-local GObject = lgi.GObject
 local lfs = require('lfs')
 local http = require('socket.http')
 local ltn12 = require('ltn12')
@@ -26,6 +21,43 @@ local script_path = debug.getinfo(1, "S").source:match("(.*/)") or ""
 script_path = script_path:sub(2) -- Remove '@'
 local script_dir = script_path:match("(.+)/") or ""
 package.path = script_dir .. "/?.lua;" .. package.path
+
+-- Load LGI and dependencies with error handling
+local lgi_status, lgi = pcall(require, 'lgi')
+if not lgi_status then
+    print("Error: Failed to load LGI library.")
+    print("Please ensure 'lgi' is installed correctly for your Lua version.")
+    print("On Debian/Ubuntu: sudo apt install lua-lgi libgirepository1.0-dev")
+    os.exit(1)
+end
+
+local Gtk_status, Gtk = pcall(function() return lgi.require('Gtk', '3.0') end)
+if not Gtk_status then
+    print("Error: Failed to load GTK 3.0.")
+    print("This usually means the GTK introspection data is missing.")
+    print("On Debian/Ubuntu: sudo apt install gir1.2-gtk-3.0")
+    os.exit(1)
+end
+
+local Gdk_status, Gdk = pcall(function() return lgi.require('Gdk', '3.0') end)
+if not Gdk_status then
+    print("Error: Failed to load Gdk 3.0.")
+    print("On Debian/Ubuntu: sudo apt install gir1.2-gtk-3.0")
+    os.exit(1)
+end
+
+local GdkPixbuf_status, GdkPixbuf = pcall(function() return lgi.require('GdkPixbuf', '2.0') end)
+if not GdkPixbuf_status then
+    print("Error: Failed to load GdkPixbuf.")
+    print("On Debian/Ubuntu: sudo apt install gir1.2-gdk-pixbuf-2.0")
+    os.exit(1)
+end
+
+local GObject_status, GObject = pcall(function() return lgi.require('GObject', '2.0') end)
+if not GObject_status then
+    print("Error: Failed to load GObject.")
+    os.exit(1)
+end
 
 local client = require("ampache-client")
 
