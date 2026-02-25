@@ -16,6 +16,8 @@ local lfs = require('lfs')
 local http = require('socket.http')
 local ltn12 = require('ltn12')
 
+print("Initializing Ampache GUI...")
+
 -- Setup package path to find local modules
 local script_path = debug.getinfo(1, "S").source:match("(.*/)") or ""
 script_path = script_path:sub(2) -- Remove '@'
@@ -59,6 +61,12 @@ if not GObject_status then
     os.exit(1)
 end
 
+local GLib_status, GLib = pcall(function() return lgi.require('GLib', '2.0') end)
+if not GLib_status then
+    print("Error: Failed to load GLib.")
+    os.exit(1)
+end
+
 local client = require("ampache-client")
 
 local App = Gtk.Application()
@@ -87,6 +95,7 @@ end
 
 -- Function to create the Main Window
 local function create_main_window(app)
+    print("Creating main window...")
     main_window = Gtk.ApplicationWindow {
         application = app,
         title = "Ampache Albums",
@@ -113,10 +122,15 @@ local function create_main_window(app)
     main_window:show_all()
 
     -- Use idle_add to load data without blocking UI startup
-    GObject.idle_add(function()
+    print("Scheduling album loading via GLib.idle_add...")
+    GLib.idle_add(function()
+        print("Idle callback started: Fetching albums...")
         local res, code, h, s, j, data = api_client:albums({limit = 50})
         
+        print("API call finished. HTTP Code: " .. tostring(code))
+        
         if code ~= 200 or not data or not data.album then
+            print("Error loading albums: " .. tostring(code))
             loading_label.label = "Error loading albums."
             return false
         end
@@ -125,10 +139,13 @@ local function create_main_window(app)
 
         local temp_dir = "temp_images"
         if not lfs.attributes(temp_dir) then
+            print("Creating temp directory: " .. temp_dir)
             lfs.mkdir(temp_dir)
         end
 
+        local count = 0
         for _, album in ipairs(data.album) do
+            count = count + 1
             local box = Gtk.Box {
                 orientation = Gtk.Orientation.VERTICAL,
                 spacing = 5,
@@ -141,7 +158,11 @@ local function create_main_window(app)
                 local filename = temp_dir .. "/" .. (album.id or os.time()) .. ".jpg"
                 -- Simple check to avoid re-downloading if file exists (optional)
                 if not lfs.attributes(filename) then
-                    pcall(download_image, album.art, filename)
+                    -- pcall to handle download errors gracefully
+                    local ok, err = pcall(download_image, album.art, filename)
+                    if not ok then
+                        print("Failed to download image for album " .. (album.name or "unknown") .. ": " .. tostring(err))
+                    end
                 end
                 if lfs.attributes(filename) then
                     img_path = filename
@@ -150,8 +171,15 @@ local function create_main_window(app)
 
             local image_widget
             if img_path then
-                local pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(img_path, 150, 150)
-                image_widget = Gtk.Image { pixbuf = pixbuf }
+                local ok, pixbuf = pcall(GdkPixbuf.Pixbuf.new_from_file_at_size, img_path, 150, 150)
+                if ok then
+                    image_widget = Gtk.Image { pixbuf = pixbuf }
+                else
+                     image_widget = Gtk.Image { 
+                        icon_name = 'media-optical', 
+                        pixel_size = 150 
+                    }
+                end
             else
                 image_widget = Gtk.Image { 
                     icon_name = 'media-optical', 
@@ -180,6 +208,7 @@ local function create_main_window(app)
             flowbox:add(box)
         end
         
+        print("Finished processing " .. count .. " albums.")
         main_window:show_all()
         return false
     end)
@@ -187,6 +216,7 @@ end
 
 -- Function to create the Login Window
 local function create_login_window(app)
+    print("Creating login window...")
     local window = Gtk.ApplicationWindow {
         application = app,
         title = "Ampache Login",
@@ -233,21 +263,27 @@ local function create_login_window(app)
         end
 
         status_label.label = "Logging in..."
+        print("Login button clicked. Attempting to connect to: " .. url)
         
         -- Perform login and initial fetch synchronously
         local ok, err = pcall(function()
             api_client = client.new(url, user, pass)
+            print("Client created. Verifying connection...")
             -- Verify connection by trying to get albums
             local _, code = api_client:albums({limit = 1})
             if code ~= 200 then
+                print("Connection verification failed with code: " .. tostring(code))
                 error("Authentication failed or server error")
             end
+            print("Connection verified successfully.")
         end)
 
         if ok then
+            print("Login successful. Opening main window.")
             window:destroy()
             create_main_window(app)
         else
+            print("Login failed: " .. tostring(err))
             status_label.label = "<span foreground='red'>Error: " .. tostring(err) .. "</span>"
             status_label.use_markup = true
         end
