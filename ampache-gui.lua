@@ -77,10 +77,8 @@ local main_window = nil
 
 -- Helper function to download an image
 local function download_image(url, filename)
-    print("Downloading image: " .. url)
     local file, err = io.open(filename, "wb")
     if not file then 
-        print("Failed to open file for writing: " .. filename .. " Error: " .. tostring(err))
         return nil, err 
     end
     local response_body = {}
@@ -88,22 +86,17 @@ local function download_image(url, filename)
         url = url,
         sink = ltn12.sink.table(response_body)
     }
-    -- http.request returns code as second return value in this signature
-    -- but checking res first is safer for connection errors
     if not res then
-         print("Connection error downloading image: " .. tostring(code))
          file:close()
          return nil, code
     end
     
     if code ~= 200 then
-        print("HTTP error downloading image: " .. tostring(code))
         file:close()
         return nil, "HTTP code " .. code
     end
     file:write(table.concat(response_body))
     file:close()
-    print("Saved image to: " .. filename)
     return filename
 end
 
@@ -241,7 +234,15 @@ local function create_main_window(app)
         
         local extra_text = ""
         if album.playcount then extra_text = extra_text .. "Plays: " .. album.playcount .. "  " end
-        if album.rating then extra_text = extra_text .. "Rating: " .. album.rating .. "  " end
+        
+        -- Safe check for rating to avoid concatenating userdata/table
+        if album.rating then
+            local r = album.rating
+            if type(r) == "string" or type(r) == "number" then
+                extra_text = extra_text .. "Rating: " .. r .. "  "
+            end
+        end
+        
         album_extra_label.label = extra_text
 
         -- Load Art
