@@ -111,17 +111,18 @@ if Gst_status then
         local bus = playbin:get_bus()
         bus:add_signal_watch()
         
-        bus.on['message::error'] = function(self, message)
+        -- Use connect method instead of .on property for compatibility
+        bus:connect('message::error', function(self, message)
             local err, debug = message:parse_error()
             print("GStreamer Error: " .. tostring(err.message))
             if debug then print("Debug info: " .. debug) end
             playbin.state = Gst.State.NULL
-        end
+        end)
         
-        bus.on['message::eos'] = function(self, message)
+        bus:connect('message::eos', function(self, message)
             print("Playback finished.")
             playbin.state = Gst.State.NULL
-        end
+        end)
     end
 else
     print("Warning: GStreamer (Gst 1.0) not found. Audio playback will be disabled.")
