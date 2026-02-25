@@ -77,19 +77,33 @@ local main_window = nil
 
 -- Helper function to download an image
 local function download_image(url, filename)
+    print("Downloading image: " .. url)
     local file, err = io.open(filename, "wb")
-    if not file then return nil, err end
+    if not file then 
+        print("Failed to open file for writing: " .. filename .. " Error: " .. tostring(err))
+        return nil, err 
+    end
     local response_body = {}
-    local _, code = http.request{
+    local res, code = http.request{
         url = url,
         sink = ltn12.sink.table(response_body)
     }
+    -- http.request returns code as second return value in this signature
+    -- but checking res first is safer for connection errors
+    if not res then
+         print("Connection error downloading image: " .. tostring(code))
+         file:close()
+         return nil, code
+    end
+    
     if code ~= 200 then
+        print("HTTP error downloading image: " .. tostring(code))
         file:close()
         return nil, "HTTP code " .. code
     end
     file:write(table.concat(response_body))
     file:close()
+    print("Saved image to: " .. filename)
     return filename
 end
 
@@ -121,9 +135,10 @@ local function create_main_window(app)
     flowbox:add(loading_label)
     main_window:show_all()
 
-    -- Use idle_add to load data without blocking UI startup
-    print("Scheduling album loading via GLib.idle_add...")
-    GLib.idle_add(function()
+    -- Use timeout_add with 0 interval to load data without blocking UI startup
+    -- This is effectively the same as idle_add but avoids argument signature issues
+    print("Scheduling album loading via GLib.timeout_add(0)...")
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 0, function()
         print("Idle callback started: Fetching albums...")
         local res, code, h, s, j, data = api_client:albums({limit = 50})
         
@@ -135,6 +150,7 @@ local function create_main_window(app)
             return false
         end
 
+        print("Found " .. #data.album .. " albums. Processing...")
         flowbox:remove(loading_label)
 
         local temp_dir = "temp_images"
@@ -146,6 +162,8 @@ local function create_main_window(app)
         local count = 0
         for _, album in ipairs(data.album) do
             count = count + 1
+            print("Processing album " .. count .. ": " .. (album.name or "Unknown"))
+            
             local box = Gtk.Box {
                 orientation = Gtk.Orientation.VERTICAL,
                 spacing = 5,
@@ -163,6 +181,8 @@ local function create_main_window(app)
                     if not ok then
                         print("Failed to download image for album " .. (album.name or "unknown") .. ": " .. tostring(err))
                     end
+                else
+                    print("Image already cached: " .. filename)
                 end
                 if lfs.attributes(filename) then
                     img_path = filename
@@ -210,7 +230,7 @@ local function create_main_window(app)
         
         print("Finished processing " .. count .. " albums.")
         main_window:show_all()
-        return false
+        return false -- Return false to remove the timeout
     end)
 end
 
@@ -267,6 +287,7 @@ local function create_login_window(app)
         
         -- Perform login and initial fetch synchronously
         local ok, err = pcall(function()
+            print("Creating client...")
             api_client = client.new(url, user, pass)
             print("Client created. Verifying connection...")
             -- Verify connection by trying to get albums
