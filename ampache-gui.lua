@@ -249,17 +249,11 @@ local function update_progress_bar()
     if not playbin or is_seeking then return true end -- Keep timer running
     
     local ok, position = playbin:query_position(Gst.Format.TIME)
-    local ok_dur, duration = playbin:query_duration(Gst.Format.TIME)
 
-    if ok and ok_dur and type(position) == "number" and type(duration) == "number" and duration > 0 then
+    if ok and type(position) == "number" then
         local pos_sec = position / 1000000000
-        local dur_sec = duration / 1000000000
-        
-        progress_scale.adjustment.upper = dur_sec
         progress_scale.adjustment.value = pos_sec
-        
         current_time_label.label = format_time(pos_sec)
-        total_time_label.label = format_time(dur_sec)
     end
     
     return true -- Continue timeout
@@ -292,6 +286,13 @@ local function play_song_at_index(index)
     playbin.uri = stream_url
     playbin.state = Gst.State.PLAYING
     is_playing = true
+    
+    -- Set duration from metadata immediately
+    local duration = song.time or 0
+    total_time_label.label = format_time(duration)
+    progress_scale.adjustment.upper = duration
+    progress_scale.adjustment.value = 0
+    current_time_label.label = "0:00"
     
     -- Start progress timer
     if progress_timeout_id then GLib.source_remove(progress_timeout_id) end
@@ -523,6 +524,28 @@ local function create_main_window(app)
     end
 
     -- ==========================================
+    -- PAGE: PLAYLISTS LIST (Moved to First)
+    -- ==========================================
+    local scrolled_playlists = Gtk.ScrolledWindow {}
+    local playlist_flowbox = Gtk.FlowBox {
+        valign = Gtk.Align.START,
+        halign = Gtk.Align.START,
+        column_spacing = 10,
+        row_spacing = 10,
+        margin = 10,
+        min_children_per_line = 3,
+        selection_mode = Gtk.SelectionMode.NONE
+    }
+    scrolled_playlists.child = playlist_flowbox
+    main_stack:add_titled(scrolled_playlists, "playlists", "Playlists")
+
+    local loading_playlists_label = Gtk.Label { label = "Loading playlists..." }
+    playlist_flowbox:add(loading_playlists_label)
+    
+    -- Map to store playlist data
+    local playlist_map = {}
+
+    -- ==========================================
     -- PAGE: ALBUMS LIST
     -- ==========================================
     local scrolled_albums = Gtk.ScrolledWindow {}
@@ -543,28 +566,6 @@ local function create_main_window(app)
     
     -- Map to store album data
     local album_map = {}
-
-    -- ==========================================
-    -- PAGE: PLAYLISTS LIST
-    -- ==========================================
-    local scrolled_playlists = Gtk.ScrolledWindow {}
-    local playlist_flowbox = Gtk.FlowBox {
-        valign = Gtk.Align.START,
-        halign = Gtk.Align.START,
-        column_spacing = 10,
-        row_spacing = 10,
-        margin = 10,
-        min_children_per_line = 3,
-        selection_mode = Gtk.SelectionMode.NONE
-    }
-    scrolled_playlists.child = playlist_flowbox
-    main_stack:add_titled(scrolled_playlists, "playlists", "Playlists")
-
-    local loading_playlists_label = Gtk.Label { label = "Loading playlists..." }
-    playlist_flowbox:add(loading_playlists_label)
-    
-    -- Map to store playlist data
-    local playlist_map = {}
 
     -- ==========================================
     -- PAGE: ARTISTS (Placeholder)
@@ -612,7 +613,7 @@ local function create_main_window(app)
     album_detail_box:pack_start(album_header_box, false, false, 0)
     album_detail_box:pack_start(album_songs_scrolled, true, true, 0)
     
-    main_stack:add_named(album_detail_box, "album_detail")
+    main_stack:add_titled(album_detail_box, "album_detail", "Album")
 
     -- ==========================================
     -- PAGE: PLAYLIST DETAIL
@@ -648,7 +649,7 @@ local function create_main_window(app)
     playlist_detail_box:pack_start(playlist_header_box, false, false, 0)
     playlist_detail_box:pack_start(playlist_songs_scrolled, true, true, 0)
     
-    main_stack:add_named(playlist_detail_box, "playlist_detail")
+    main_stack:add_titled(playlist_detail_box, "playlist_detail", "Playlist")
 
     -- ==========================================
     -- LOGIC & CALLBACKS
@@ -671,8 +672,6 @@ local function create_main_window(app)
         elseif current == "playlist_detail" then
             main_stack.visible_child_name = "playlists"
         end
-        back_button.visible = false
-        stack_switcher.visible = true
         header_bar.title = "Ampache"
     end
 
@@ -680,10 +679,8 @@ local function create_main_window(app)
     main_stack.on_notify['visible-child-name'] = function(self)
         local name = main_stack.visible_child_name
         if name == "album_detail" or name == "playlist_detail" then
-            stack_switcher.visible = false
             back_button.visible = true
         else
-            stack_switcher.visible = true
             back_button.visible = false
             header_bar.title = "Ampache"
         end
@@ -696,6 +693,7 @@ local function create_main_window(app)
         for _, child in ipairs(children) do album_songs_listbox:remove(child) end
 
         header_bar.title = album.name or "Album"
+        main_stack.child_set_property(album_detail_box, "title", album.name or "Album")
         
         album_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(album.name or "Unknown") .. "</span>"
         album_artist_label.label = "by " .. escape_markup(album.artist and album.artist.name or "Unknown Artist")
@@ -802,6 +800,7 @@ local function create_main_window(app)
         for _, child in ipairs(children) do playlist_songs_listbox:remove(child) end
 
         header_bar.title = playlist.name or "Playlist"
+        main_stack.child_set_property(playlist_detail_box, "title", playlist.name or "Playlist")
         
         playlist_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(playlist.name or "Unknown") .. "</span>"
         playlist_extra_label.label = "Total items: " .. (playlist.items or "N/A")
