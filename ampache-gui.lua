@@ -721,7 +721,7 @@ local function create_main_window(app)
         main_window:show_all()
 
         GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 0, function()
-            local code, res, h, s, j, data = api_client:request('album_songs', { filter = album.id })
+            local _, code, _, _, _, data = api_client:request('album_songs', { filter = album.id })
             
             local children = album_songs_listbox:get_children()
             for _, child in ipairs(children) do album_songs_listbox:remove(child) end
@@ -817,7 +817,7 @@ local function create_main_window(app)
         main_window:show_all()
 
         GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 0, function()
-            local code, res, h, s, j, data = api_client:request('playlist_songs', { filter = playlist.id })
+            local _, code, _, _, _, data = api_client:request('playlist_songs', { filter = playlist.id })
             
             local children = playlist_songs_listbox:get_children()
             for _, child in ipairs(children) do playlist_songs_listbox:remove(child) end
@@ -885,7 +885,7 @@ local function create_main_window(app)
 
     -- Load Albums
     GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 0, function()
-        local code, res, h, s, j, data = api_client:albums({limit = 50})
+        local _, code, _, _, _, data = api_client:albums({limit = 50})
         
         if code ~= 200 or not data or not data.album then
             loading_albums_label.label = "Error loading albums."
@@ -932,7 +932,7 @@ local function create_main_window(app)
 
     -- Load Playlists
     GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 0, function()
-        local code, res, h, s, j, data = api_client:playlists({limit = 50})
+        local _, code, _, _, _, data = api_client:playlists({limit = 50})
         
         if code ~= 200 or not data or not data.playlist then
             loading_playlists_label.label = "Error loading playlists."
@@ -1051,7 +1051,7 @@ local function create_login_window(app)
             
             api_client = client.new(url, user, pass, pass_hash)
             print("Client created. Verifying connection...")
-            local code, _ = api_client:albums({limit = 1})
+            local _, code = api_client:albums({limit = 1})
             if code ~= 200 then
                 print("Connection verification failed with code: " .. tostring(code))
                 error("Authentication failed or server error")
@@ -1075,7 +1075,7 @@ local function create_login_window(app)
                 db.save_session(db_conn, url, user, pass_hash, nil, nil)
                 
                 -- Fetch user info
-                local user_code, user_res = api_client:user({})
+                local _, user_code, _, _, _, user_res = api_client:user({})
                 if user_code == 200 and user_res and user_res.user then
                      db.save_user(db_conn, user_res.user)
                 end
@@ -1111,7 +1111,7 @@ function App:on_activate()
         print("Found saved credentials. Attempting auto-login...")
         local ok, err = pcall(function()
             api_client = client.new(session.server_url, session.username, nil, session.password_hash)
-            local code, _ = api_client:albums({limit = 1})
+            local _, code = api_client:albums({limit = 1})
             if code ~= 200 then error("Auto-login failed") end
         end)
 
