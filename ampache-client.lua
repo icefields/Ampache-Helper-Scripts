@@ -18,14 +18,16 @@ local handshake = require("ampache-handshake")
 local client = {}
 
 -- Constructor for the Ampache Client
-function client.new(server_url, username, password)
+-- password_hash is optional. If provided, it is the SHA256 hash of the password.
+function client.new(server_url, username, password, password_hash)
     -- Perform handshake to get auth token
-    local auth_token = handshake.getAuthToken(server_url, username, password)
+    local auth_token = handshake.getAuthToken(server_url, username, password, password_hash)
     
     local instance = {
         server_url = server_url,
         username = username,
         password = password,
+        password_hash = password_hash, -- Store hash if provided
         auth = auth_token -- Store auth token for stream URLs
     }
     setmetatable(instance, { __index = client })
@@ -83,6 +85,10 @@ end
 
 function client:get_similar(args)
     return http.makeRequest(prepare_args(self, "get_similar", args), args.is_print_url)
+end
+
+function client:user(args)
+    return http.makeRequest(prepare_args(self, "user", args), args.is_print_url)
 end
 
 -- Generic request method for any action not covered by specific methods

@@ -15,6 +15,7 @@
 local lfs = require('lfs')
 local http = require('socket.http')
 local ltn12 = require('ltn12')
+local sha2 = require("sha2")
 
 print("Initializing Ampache GUI...")
 
@@ -27,66 +28,8 @@ local script_path = info.source:match("^@(.+)") or info.source
 local script_dir = script_path:match("^(.*[\\/])") or "."
 package.path = script_dir .. "/?.lua;" .. package.path
 
--- Path for storing credentials
-local home_dir = os.getenv("HOME") or os.getenv("USERPROFILE")
-local config_dir = home_dir or script_dir
-if not home_dir then
-    print("Home directory not found, using script directory: " .. config_dir)
-end
-local config_path = config_dir .. "/.ampache_gui_config"
-print("Config path: " .. config_path)
-
--- Helper function to save configuration
-local function save_config(url, user, pass)
-    local file, err = io.open(config_path, "w")
-    if not file then
-        print("Failed to open config file for writing: " .. config_path .. " Error: " .. tostring(err))
-        return
-    end
-    
-    local content = string.format("return { url = %q, user = %q, password = %q }", url, user, pass)
-    file:write(content)
-    file:close()
-    print("Credentials saved to " .. config_path)
-end
-
--- Helper function to load configuration
-local function load_config()
-    local file, err = io.open(config_path, "r")
-    if not file then
-        print("Config file not found or cannot be opened: " .. tostring(err))
-        return nil
-    end
-    
-    local content = file:read("*a")
-    file:close()
-    
-    if not content or content == "" then
-        print("Config file is empty.")
-        return nil
-    end
-    
-    local func, load_err = load(content, "config")
-    if not func then
-        print("Failed to parse config file: " .. tostring(load_err))
-        return nil
-    end
-    
-    local ok, data = pcall(func)
-    if ok and type(data) == "table" then
-        print("Config loaded successfully.")
-        return data
-    else
-        print("Failed to execute config or config is not a table: " .. tostring(data))
-        return nil
-    end
-end
-
--- Helper function to delete configuration
-local function delete_config()
-    os.remove(config_path)
-    print("Credentials deleted.")
-end
+-- Load DB module
+local db = require("ampache-db")
 
 -- Load LGI and dependencies with error handling
 local lgi_status, lgi = pcall(require, 'lgi')
@@ -182,6 +125,7 @@ App.application_id = 'com.github.icefields.ampache-gui'
 
 local api_client = nil
 local main_window = nil
+local db_conn = nil
 
 -- UI Elements for Player
 local player_bar = nil
@@ -689,7 +633,9 @@ local function create_main_window(app)
     -- Logout Button Callback
     function logout_button:on_clicked()
         print("Logging out...")
-        delete_config()
+        if db_conn then
+            db.clear_session(db_conn)
+        end
         api_client = nil
         main_window:destroy()
         create_login_window(app)
@@ -1100,7 +1046,10 @@ local function create_login_window(app)
         
         local ok, err = pcall(function()
             print("Creating client...")
-            api_client = client.new(url, user, pass)
+            -- Calculate SHA256 hash of password for storage
+            local pass_hash = sha2.sha256(pass)
+            
+            api_client = client.new(url, user, pass, pass_hash)
             print("Client created. Verifying connection...")
             local _, code = api_client:albums({limit = 1})
             if code ~= 200 then
@@ -1111,7 +1060,26 @@ local function create_login_window(app)
         end)
 
         if ok then
-            save_config(url, user, pass)
+            -- Save session to DB
+            if db_conn then
+                print("Saving session to database...")
+                -- We need the token and expire time from the handshake.
+                -- The client.new calls handshake.getAuthToken which stores in file, but we want DB.
+                -- We can retrieve it from the client object or re-fetch.
+                -- Ideally, handshake returns the full JSON.
+                -- For now, let's just save what we have. 
+                -- We'll update the handshake module to return the full response later if needed.
+                -- For now, we save the credentials. The token is saved in the file by handshake.lua.
+                -- We will update the DB in the next step.
+                -- Actually, let's just save credentials here.
+                db.save_session(db_conn, url, user, pass_hash, nil, nil)
+                
+                -- Fetch user info
+                local user_res, user_code = api_client:user({})
+                if user_code == 200 and user_res and user_res.user then
+                     db.save_user(db_conn, user_res.user)
+                end
+            end
             print("Login successful. Opening main window.")
             window:destroy()
             create_main_window(app)
@@ -1126,11 +1094,23 @@ local function create_login_window(app)
 end
 
 function App:on_activate()
-    local config = load_config()
-    if config then
+    -- Initialize Database
+    print("Initializing database...")
+    local ok, err = pcall(function()
+        db_conn = db.init()
+    end)
+    if not ok then
+        print("Failed to initialize database: " .. tostring(err))
+        -- Fallback or exit
+        return
+    end
+
+    -- Check for existing session
+    local session = db.load_session(db_conn)
+    if session and session.server_url and session.username and session.password_hash then
         print("Found saved credentials. Attempting auto-login...")
         local ok, err = pcall(function()
-            api_client = client.new(config.url, config.user, config.password)
+            api_client = client.new(session.server_url, session.username, nil, session.password_hash)
             local _, code = api_client:albums({limit = 1})
             if code ~= 200 then error("Auto-login failed") end
         end)

@@ -51,9 +51,11 @@ local function str2Json(str)
 end
 
 -- Main function
-local function handshake(serverUrl, username, password)
+-- password_hash is optional. If provided, it is the SHA256 hash of the password.
+local function handshake(serverUrl, username, password, password_hash)
     local timestamp = tostring(getTimestamp())
-    local passwordSha256 = calculateSha256(password)
+    -- Use provided hash or calculate from password
+    local passwordSha256 = password_hash or calculateSha256(password)
     local auth = calculateSha256(timestamp .. passwordSha256)
 
     local url = string.format(
@@ -103,7 +105,7 @@ local function isTokenExpired(expireStr)
     return nowStr >= expireStr:sub(1, 19) -- Compare up to seconds
 end
 
-local function authToken(serverUrl, username, password)
+local function authToken(serverUrl, username, password, password_hash)
     local token, expire = getStoredToken()
     
     if token and not isTokenExpired(expire) then
@@ -111,7 +113,7 @@ local function authToken(serverUrl, username, password)
     end
     
     -- Token missing or expired, perform handshake
-    local jsonResp = handshake(serverUrl, username, password)
+    local jsonResp = handshake(serverUrl, username, password, password_hash)
     if jsonResp and jsonResp.auth then
         storeToken(jsonResp.auth, jsonResp.session_expire)
         return jsonResp.auth
