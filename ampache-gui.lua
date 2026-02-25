@@ -131,7 +131,8 @@ local function create_main_window(app)
         show_close_button = true,
         decoration_layout = "menu:close"
     }
-    main_window.titlebar = header_bar
+    -- Use set_titlebar method instead of property assignment for broader compatibility
+    main_window:set_titlebar(header_bar)
 
     -- Back Button (initially hidden)
     local back_button = Gtk.Button {
