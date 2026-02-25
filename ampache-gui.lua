@@ -35,8 +35,12 @@ local function save_config(url, user, pass)
     local file, err = io.open(config_path, "w")
     if file then
         file:write(string.format("return { url = %q, user = %q, password = %q }", url, user, pass))
-        file:close()
-        print("Credentials saved to " .. config_path)
+        local ok, err_close = file:close()
+        if ok then
+            print("Credentials saved to " .. config_path)
+        else
+            print("Failed to close config file: " .. tostring(err_close))
+        end
     else
         print("Failed to save credentials to " .. config_path .. ": " .. tostring(err))
     end
@@ -44,11 +48,18 @@ end
 
 -- Helper function to load configuration
 local function load_config()
+    if not lfs.attributes(config_path) then
+        print("Config file not found at " .. config_path)
+        return nil
+    end
     local ok, data = pcall(dofile, config_path)
     if ok and type(data) == "table" then
+        print("Config loaded successfully.")
         return data
+    else
+        print("Failed to load config: " .. tostring(data))
+        return nil
     end
-    return nil
 end
 
 -- Helper function to delete configuration
@@ -669,10 +680,10 @@ local function create_main_window(app)
         local current = main_stack.visible_child_name
         if current == "album_detail" then
             main_stack.visible_child_name = "albums"
-            main_stack:set_title(album_detail_box, "")
+            main_stack[album_detail_box].title = ""
         elseif current == "playlist_detail" then
             main_stack.visible_child_name = "playlists"
-            main_stack:set_title(playlist_detail_box, "")
+            main_stack[playlist_detail_box].title = ""
         end
         header_bar.title = "Ampache"
     end
@@ -695,7 +706,7 @@ local function create_main_window(app)
         for _, child in ipairs(children) do album_songs_listbox:remove(child) end
 
         header_bar.title = album.name or "Album"
-        main_stack:set_title(album_detail_box, album.name or "")
+        main_stack[album_detail_box].title = album.name or ""
         
         album_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(album.name or "Unknown") .. "</span>"
         album_artist_label.label = "by " .. escape_markup(album.artist and album.artist.name or "Unknown Artist")
@@ -802,7 +813,7 @@ local function create_main_window(app)
         for _, child in ipairs(children) do playlist_songs_listbox:remove(child) end
 
         header_bar.title = playlist.name or "Playlist"
-        main_stack:set_title(playlist_detail_box, playlist.name or "")
+        main_stack[playlist_detail_box].title = playlist.name or ""
         
         playlist_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(playlist.name or "Unknown") .. "</span>"
         playlist_extra_label.label = "Total items: " .. (playlist.items or "N/A")
