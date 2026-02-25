@@ -107,6 +107,14 @@ local function download_image(url, filename)
     return filename
 end
 
+-- Helper to format time (seconds to M:SS)
+local function format_time(seconds)
+    if not seconds or type(seconds) ~= "number" then return "--:--" end
+    local mins = math.floor(seconds / 60)
+    local secs = seconds % 60
+    return string.format("%d:%02d", mins, secs)
+end
+
 -- Function to create the Main Window
 local function create_main_window(app)
     print("Creating main window...")
@@ -117,7 +125,33 @@ local function create_main_window(app)
         default_height = 600,
     }
 
-    local scrolled = Gtk.ScrolledWindow {}
+    -- Setup Header Bar
+    local header_bar = Gtk.HeaderBar {
+        title = "Ampache Albums",
+        show_close_button = true,
+        decoration_layout = "menu:close"
+    }
+    main_window.titlebar = header_bar
+
+    -- Back Button (initially hidden)
+    local back_button = Gtk.Button {
+        image = Gtk.Image { icon_name = "go-previous-symbolic" },
+        visible = false,
+        tooltip_text = "Back to Albums"
+    }
+    header_bar:pack_start(back_button)
+
+    -- Main Stack for navigation
+    local stack = Gtk.Stack {}
+    main_window.child = stack
+
+    -- Map to store album data associated with FlowBox children
+    local album_map = {}
+
+    -- ==========================================
+    -- PAGE 1: ALBUMS LIST
+    -- ==========================================
+    local scrolled_albums = Gtk.ScrolledWindow {}
     local flowbox = Gtk.FlowBox {
         valign = Gtk.Align.START,
         halign = Gtk.Align.START,
@@ -127,16 +161,179 @@ local function create_main_window(app)
         min_children_per_line = 3,
         selection_mode = Gtk.SelectionMode.NONE
     }
-
-    scrolled.child = flowbox
-    main_window.child = scrolled
+    scrolled_albums.child = flowbox
+    stack:add_named(scrolled_albums, "albums")
 
     local loading_label = Gtk.Label { label = "Loading albums..." }
     flowbox:add(loading_label)
     main_window:show_all()
 
-    -- Use timeout_add with 0 interval to load data without blocking UI startup
-    -- This is effectively the same as idle_add but avoids argument signature issues
+    -- ==========================================
+    -- PAGE 2: ALBUM DETAIL
+    -- ==========================================
+    local detail_box = Gtk.Box { orientation = Gtk.Orientation.VERTICAL, spacing = 10, margin = 10 }
+    
+    -- Album Info Header (Art + Metadata)
+    local album_header_box = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL, spacing = 15, margin_bottom = 10 }
+    
+    local album_art_image = Gtk.Image { 
+        icon_name = 'media-optical', 
+        pixel_size = 150 
+    }
+    
+    local album_info_box = Gtk.Box { orientation = Gtk.Orientation.VERTICAL, spacing = 5, valign = Gtk.Align.START }
+    local album_title_label = Gtk.Label { 
+        label = "Album Title", 
+        use_markup = true,
+        halign = Gtk.Align.START,
+        ellipsize = 'END'
+    }
+    local album_artist_label = Gtk.Label { label = "Artist", halign = Gtk.Align.START, sensitive = false }
+    local album_year_label = Gtk.Label { label = "Year", halign = Gtk.Align.START, sensitive = false }
+    local album_extra_label = Gtk.Label { label = "", halign = Gtk.Align.START, sensitive = false }
+    
+    album_info_box:pack_start(album_title_label, false, false, 0)
+    album_info_box:pack_start(album_artist_label, false, false, 0)
+    album_info_box:pack_start(album_year_label, false, false, 0)
+    album_info_box:pack_start(album_extra_label, false, false, 0)
+
+    album_header_box:pack_start(album_art_image, false, false, 0)
+    album_header_box:pack_start(album_info_box, true, true, 0)
+
+    -- Songs List
+    local songs_scrolled = Gtk.ScrolledWindow {}
+    local songs_listbox = Gtk.ListBox {}
+    songs_scrolled.child = songs_listbox
+
+    detail_box:pack_start(album_header_box, false, false, 0)
+    detail_box:pack_start(songs_scrolled, true, true, 0)
+
+    stack:add_named(detail_box, "detail")
+
+    -- ==========================================
+    -- LOGIC & CALLBACKS
+    -- ==========================================
+
+    -- Back Button Callback
+    function back_button:on_clicked()
+        stack.visible_child_name = "albums"
+        back_button.visible = false
+        header_bar.title = "Ampache Albums"
+    end
+
+    -- Function to load album detail
+    local function load_album_detail(album)
+        -- Clear previous songs
+        local children = songs_listbox:get_children()
+        for _, child in ipairs(children) do
+            songs_listbox:remove(child)
+        end
+
+        -- Update Header
+        header_bar.title = album.name or "Album"
+        back_button.visible = true
+        
+        -- Update Album Info
+        album_title_label.label = "<span size='x-large' weight='bold'>" .. (album.name or "Unknown") .. "</span>"
+        album_artist_label.label = "by " .. (album.artist and album.artist.name or "Unknown Artist")
+        album_year_label.label = "Year: " .. (album.year or "N/A")
+        
+        local extra_text = ""
+        if album.playcount then extra_text = extra_text .. "Plays: " .. album.playcount .. "  " end
+        if album.rating then extra_text = extra_text .. "Rating: " .. album.rating .. "  " end
+        album_extra_label.label = extra_text
+
+        -- Load Art
+        local img_path = nil
+        if album.art and album.has_art then
+            local temp_dir = "temp_images"
+            if not lfs.attributes(temp_dir) then lfs.mkdir(temp_dir) end
+            local filename = temp_dir .. "/" .. (album.id or os.time()) .. ".jpg"
+            if not lfs.attributes(filename) then
+                pcall(download_image, album.art, filename)
+            end
+            if lfs.attributes(filename) then
+                img_path = filename
+            end
+        end
+
+        if img_path then
+            local ok, pixbuf = pcall(GdkPixbuf.Pixbuf.new_from_file_at_size, img_path, 150, 150)
+            if ok then
+                album_art_image.pixbuf = pixbuf
+            else
+                album_art_image.icon_name = 'media-optical'
+            end
+        else
+            album_art_image.icon_name = 'media-optical'
+        end
+
+        -- Switch to detail view immediately with loading indicator
+        local loading_song_label = Gtk.Label { label = "Loading songs...", margin = 10 }
+        songs_listbox:add(loading_song_label)
+        stack.visible_child_name = "detail"
+        main_window:show_all()
+
+        -- Fetch Songs Async
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 0, function()
+            -- Use 'album_songs' method via the generic request function
+            local res, code, h, s, j, data = api_client:request('album_songs', { filter = album.id })
+            
+            songs_listbox:remove(loading_song_label)
+
+            if code ~= 200 or not data or not data.song then
+                local err_label = Gtk.Label { label = "Error loading songs or album is empty.", margin = 10 }
+                songs_listbox:add(err_label)
+                main_window:show_all()
+                return false
+            end
+
+            print("Found " .. #data.song .. " songs for album " .. (album.name or "ID " .. album.id))
+            
+            for _, song in ipairs(data.song) do
+                local row = Gtk.ListBoxRow {}
+                local hbox = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL, spacing = 10, margin = 5 }
+                
+                local track_label = Gtk.Label { 
+                    label = tostring(song.track or "-"), 
+                    width_chars = 3, 
+                    halign = Gtk.Align.END 
+                }
+                
+                local title_label = Gtk.Label { 
+                    label = song.title or "Unknown", 
+                    halign = Gtk.Align.START,
+                    ellipsize = 'END'
+                }
+                
+                local duration_label = Gtk.Label { 
+                    label = format_time(song.time), 
+                    halign = Gtk.Align.END 
+                }
+
+                hbox:pack_start(track_label, false, false, 0)
+                hbox:pack_start(title_label, true, true, 0)
+                hbox:pack_start(duration_label, false, false, 0)
+                
+                row:add(hbox)
+                songs_listbox:add(row)
+            end
+            
+            main_window:show_all()
+            return false
+        end)
+    end
+
+    -- Album Click Handler
+    function flowbox:on_child_activated(child)
+        local album = album_map[child]
+        if album then
+            print("Album activated: " .. (album.name or "Unknown"))
+            load_album_detail(album)
+        end
+    end
+
+    -- Load Albums
     print("Scheduling album loading via GLib.timeout_add(0)...")
     GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 0, function()
         print("Idle callback started: Fetching albums...")
@@ -162,7 +359,7 @@ local function create_main_window(app)
         local count = 0
         for _, album in ipairs(data.album) do
             count = count + 1
-            print("Processing album " .. count .. ": " .. (album.name or "Unknown"))
+            -- print("Processing album " .. count .. ": " .. (album.name or "Unknown")) -- Verbose
             
             local box = Gtk.Box {
                 orientation = Gtk.Orientation.VERTICAL,
@@ -174,15 +371,11 @@ local function create_main_window(app)
             local img_path = nil
             if album.art and album.has_art then
                 local filename = temp_dir .. "/" .. (album.id or os.time()) .. ".jpg"
-                -- Simple check to avoid re-downloading if file exists (optional)
                 if not lfs.attributes(filename) then
-                    -- pcall to handle download errors gracefully
                     local ok, err = pcall(download_image, album.art, filename)
                     if not ok then
-                        print("Failed to download image for album " .. (album.name or "unknown") .. ": " .. tostring(err))
+                        -- print("Failed to download image: " .. tostring(err)) -- Optional debug
                     end
-                else
-                    print("Image already cached: " .. filename)
                 end
                 if lfs.attributes(filename) then
                     img_path = filename
@@ -225,12 +418,19 @@ local function create_main_window(app)
             box:add(name_label)
             box:add(artist_label)
 
-            flowbox:add(box)
+            -- Wrap in FlowBoxChild to store data
+            local child_widget = Gtk.FlowBoxChild {}
+            child_widget:add(box)
+            
+            -- Store album data in our map using the child widget as key
+            album_map[child_widget] = album
+            
+            flowbox:add(child_widget)
         end
         
         print("Finished processing " .. count .. " albums.")
         main_window:show_all()
-        return false -- Return false to remove the timeout
+        return false
     end)
 end
 
