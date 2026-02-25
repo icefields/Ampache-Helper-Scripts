@@ -97,6 +97,21 @@ if not GLib_status then
     os.exit(1)
 end
 
+-- Load GStreamer for audio playback
+local Gst_status, Gst = pcall(function() return lgi.require('Gst', '1.0') end)
+local playbin = nil
+if Gst_status then
+    print("GStreamer loaded successfully.")
+    Gst.init(nil)
+    playbin = Gst.ElementFactory.make('playbin', 'playbin')
+    if not playbin then
+        print("Warning: Could not create GStreamer playbin. Playback disabled.")
+    end
+else
+    print("Warning: GStreamer (Gst 1.0) not found. Audio playback will be disabled.")
+    print("On Debian/Ubuntu: sudo apt install gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-good")
+end
+
 local client = require("ampache-client")
 
 local App = Gtk.Application()
@@ -378,9 +393,45 @@ local function create_main_window(app)
                     halign = Gtk.Align.END 
                 }
 
+                -- Play Button
+                local play_button = Gtk.Button {
+                    image = Gtk.Image { icon_name = "media-playback-start-symbolic" },
+                    always_show_image = true,
+                    tooltip_text = "Play " .. (song.title or "song")
+                }
+
+                -- Connect Play Button
+                function play_button:on_clicked()
+                    if not playbin then
+                        print("Error: GStreamer playbin not initialized.")
+                        return
+                    end
+                    
+                    -- Check if api_client exposes auth and server_url
+                    if not api_client.auth or not api_client.server_url then
+                        print("Error: API client missing auth token or server URL.")
+                        return
+                    end
+
+                    print("Playing song ID: " .. tostring(song.id))
+                    
+                    -- Stop current playback
+                    playbin.state = Gst.State.NULL
+                    
+                    -- Construct Stream URL
+                    -- Format: http://server/play/index.php?ssid=AUTH&type=song&oid=ID
+                    local stream_url = string.format("%s/play/index.php?ssid=%s&type=song&oid=%s", 
+                        api_client.server_url, api_client.auth, song.id)
+                    
+                    print("Stream URL: " .. stream_url)
+                    playbin.uri = stream_url
+                    playbin.state = Gst.State.PLAYING
+                end
+
                 hbox:pack_start(track_label, false, false, 0)
                 hbox:pack_start(title_label, true, true, 0)
                 hbox:pack_start(duration_label, false, false, 0)
+                hbox:pack_start(play_button, false, false, 0) -- Add button at the end
                 
                 row:add(hbox)
                 songs_listbox:add(row)

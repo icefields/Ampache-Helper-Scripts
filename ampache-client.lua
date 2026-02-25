@@ -13,15 +13,20 @@
 -----------------------------------------------------
 
 local http = require("ampache-http")
+local handshake = require("ampache-handshake")
 
 local client = {}
 
 -- Constructor for the Ampache Client
 function client.new(server_url, username, password)
+    -- Perform handshake to get auth token
+    local auth_token = handshake.getAuthToken(server_url, username, password)
+    
     local instance = {
         server_url = server_url,
         username = username,
-        password = password
+        password = password,
+        auth = auth_token -- Store auth token for stream URLs
     }
     setmetatable(instance, { __index = client })
     return instance
@@ -34,6 +39,7 @@ local function prepare_args(self, action, args)
     args.server_url = self.server_url
     args.username = self.username
     args.password = self.password
+    args.auth = self.auth -- Pass auth token if available
     return args
 end
 

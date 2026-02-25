@@ -18,6 +18,15 @@ luarocks install dkjson
 # Some users might also need to install lua-socket
 ```
 
+## System Dependencies for GUI (ampache-gui.lua)
+To run the GUI application (`ampache-gui.lua`), you need LGI and GStreamer.
+```
+# Debian/Ubuntu
+sudo apt install lua-lgi libgirepository1.0-dev
+sudo apt install gir1.2-gtk-3.0
+sudo apt install gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-good gstreamer1.0-plugins-base
+```
+
 ## Quick start examples
 
 ### <b> Main Script </b> arts-collage.lua
@@ -144,4 +153,3 @@ options: <br>
 - `-H` `--handshake` or no option to print the full json response
 - `-a` `-auth` to print the auth token, very useful to pipe to other commands or put into a variable in bash to run other commands
 - `-h` `--help`, print help message
-
