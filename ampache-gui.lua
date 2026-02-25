@@ -19,9 +19,9 @@ local ltn12 = require('ltn12')
 print("Initializing Ampache GUI...")
 
 -- Setup package path to find local modules
-local script_path = debug.getinfo(1, "S").source:match("(.*/)") or ""
-script_path = script_path:sub(2) -- Remove '@'
-local script_dir = script_path:match("(.+)/") or ""
+local info = debug.getinfo(1, "S")
+local script_path = info.source:match("^@(.+)") or info.source
+local script_dir = script_path:match("^(.*[\\/])") or "."
 package.path = script_dir .. "/?.lua;" .. package.path
 
 -- Path for storing credentials
@@ -29,13 +29,13 @@ local config_path = script_dir .. "/ampache-config.lua"
 
 -- Helper function to save configuration
 local function save_config(url, user, pass)
-    local file = io.open(config_path, "w")
+    local file, err = io.open(config_path, "w")
     if file then
         file:write(string.format("return { url = %q, user = %q, password = %q }", url, user, pass))
         file:close()
-        print("Credentials saved.")
+        print("Credentials saved to " .. config_path)
     else
-        print("Failed to save credentials.")
+        print("Failed to save credentials to " .. config_path .. ": " .. tostring(err))
     end
 end
 
