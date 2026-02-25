@@ -85,77 +85,6 @@ local function download_image(url, filename)
     return filename
 end
 
--- Function to create the Login Window
-local function create_login_window(app)
-    local window = Gtk.ApplicationWindow {
-        application = app,
-        title = "Ampache Login",
-        default_width = 300,
-        default_height = 200,
-        border_width = 10,
-    }
-
-    local grid = Gtk.Grid {
-        column_spacing = 10,
-        row_spacing = 10,
-    }
-    
-    local url_entry = Gtk.Entry { placeholder_text = "Server URL" }
-    local user_entry = Gtk.Entry { placeholder_text = "Username" }
-    local pass_entry = Gtk.Entry { 
-        placeholder_text = "Password",
-        visibility = false,
-        input_purpose = Gtk.InputPurpose.PASSWORD
-    }
-    local status_label = Gtk.Label { label = "" }
-    local login_button = Gtk.Button { label = "Login" }
-
-    grid:attach(Gtk.Label { label = "Server:" }, 0, 0, 1, 1)
-    grid:attach(url_entry, 1, 0, 1, 1)
-    grid:attach(Gtk.Label { label = "User:" }, 0, 1, 1, 1)
-    grid:attach(user_entry, 1, 1, 1, 1)
-    grid:attach(Gtk.Label { label = "Pass:" }, 0, 2, 1, 1)
-    grid:attach(pass_entry, 1, 2, 1, 1)
-    grid:attach(login_button, 0, 3, 2, 1)
-    grid:attach(status_label, 0, 4, 2, 1)
-
-    window.child = grid
-
-    function login_button:on_clicked()
-        local url = url_entry.text
-        local user = user_entry.text
-        local pass = pass_entry.text
-
-        if url == "" or user == "" or pass == "" then
-            status_label.label = "<span foreground='red'>Please fill all fields.</span>"
-            status_label.use_markup = true
-            return
-        end
-
-        status_label.label = "Logging in..."
-        
-        -- Perform login and initial fetch synchronously
-        local ok, err = pcall(function()
-            api_client = client.new(url, user, pass)
-            -- Verify connection by trying to get albums
-            local _, code = api_client:albums({limit = 1})
-            if code ~= 200 then
-                error("Authentication failed or server error")
-            end
-        end)
-
-        if ok then
-            window:destroy()
-            create_main_window(app)
-        else
-            status_label.label = "<span foreground='red'>Error: " .. tostring(err) .. "</span>"
-            status_label.use_markup = true
-        end
-    end
-
-    window:show_all()
-end
-
 -- Function to create the Main Window
 local function create_main_window(app)
     main_window = Gtk.ApplicationWindow {
@@ -254,6 +183,77 @@ local function create_main_window(app)
         main_window:show_all()
         return false
     end)
+end
+
+-- Function to create the Login Window
+local function create_login_window(app)
+    local window = Gtk.ApplicationWindow {
+        application = app,
+        title = "Ampache Login",
+        default_width = 300,
+        default_height = 200,
+        border_width = 10,
+    }
+
+    local grid = Gtk.Grid {
+        column_spacing = 10,
+        row_spacing = 10,
+    }
+    
+    local url_entry = Gtk.Entry { placeholder_text = "Server URL" }
+    local user_entry = Gtk.Entry { placeholder_text = "Username" }
+    local pass_entry = Gtk.Entry { 
+        placeholder_text = "Password",
+        visibility = false,
+        input_purpose = Gtk.InputPurpose.PASSWORD
+    }
+    local status_label = Gtk.Label { label = "" }
+    local login_button = Gtk.Button { label = "Login" }
+
+    grid:attach(Gtk.Label { label = "Server:" }, 0, 0, 1, 1)
+    grid:attach(url_entry, 1, 0, 1, 1)
+    grid:attach(Gtk.Label { label = "User:" }, 0, 1, 1, 1)
+    grid:attach(user_entry, 1, 1, 1, 1)
+    grid:attach(Gtk.Label { label = "Pass:" }, 0, 2, 1, 1)
+    grid:attach(pass_entry, 1, 2, 1, 1)
+    grid:attach(login_button, 0, 3, 2, 1)
+    grid:attach(status_label, 0, 4, 2, 1)
+
+    window.child = grid
+
+    function login_button:on_clicked()
+        local url = url_entry.text
+        local user = user_entry.text
+        local pass = pass_entry.text
+
+        if url == "" or user == "" or pass == "" then
+            status_label.label = "<span foreground='red'>Please fill all fields.</span>"
+            status_label.use_markup = true
+            return
+        end
+
+        status_label.label = "Logging in..."
+        
+        -- Perform login and initial fetch synchronously
+        local ok, err = pcall(function()
+            api_client = client.new(url, user, pass)
+            -- Verify connection by trying to get albums
+            local _, code = api_client:albums({limit = 1})
+            if code ~= 200 then
+                error("Authentication failed or server error")
+            end
+        end)
+
+        if ok then
+            window:destroy()
+            create_main_window(app)
+        else
+            status_label.label = "<span foreground='red'>Error: " .. tostring(err) .. "</span>"
+            status_label.use_markup = true
+        end
+    end
+
+    window:show_all()
 end
 
 function App:on_activate()
