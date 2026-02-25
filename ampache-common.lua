@@ -185,9 +185,13 @@ local function readFile(path)
 end
 
 local function writeFile(path, string)
-    local file = io.open(path, "w")
+    local file, err = io.open(path, "w")
+    if not file then 
+        return nil, err 
+    end
     file:write(string)
     file:close()
+    return true
 end
 
 return {
