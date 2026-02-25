@@ -1065,9 +1065,32 @@ local function create_login_window(app)
                 print("Saving session to database...")
                 -- Retrieve token and expire from client if available
                 local token = api_client.auth
-                local expire = api_client.expire -- Attempt to get expire time
+                local expire = api_client.expire
                 
-                db.save_session(db_conn, url, user, pass_hash, token, expire)
+                -- Fallback: read expire from token file if not exposed by client
+                if not expire then
+                    print("Expire not found on client, reading from token file...")
+                    local f = io.open("token", "r")
+                    if f then
+                        local content = f:read("*a")
+                        f:close()
+                        local _, exp = content:match("([^|]+)|([^|]+)")
+                        if exp then 
+                            expire = exp
+                            print("Expire read from file: " .. expire)
+                        end
+                    else
+                        print("Token file not found.")
+                    end
+                end
+                
+                print("Saving session with token: " .. tostring(token) .. ", expire: " .. tostring(expire))
+                local save_ok, save_err = pcall(db.save_session, db_conn, url, user, pass_hash, token, expire)
+                if not save_ok then
+                    print("Error saving session: " .. tostring(save_err))
+                else
+                    print("Session saved successfully.")
+                end
                 
                 -- Fetch user info
                 local _, user_code, _, _, _, user_res = api_client:user({})
@@ -1102,9 +1125,14 @@ function App:on_activate()
 
     -- Check for existing session
     local session = db.load_session(db_conn)
+    if session then
+        print("Session loaded from DB: " .. tostring(session.server_url) .. " / " .. tostring(session.username))
+    else
+        print("No session found in DB.")
+    end
+    
     if session and session.server_url and session.username and session.password_hash then
         print("Found saved credentials. Attempting auto-login...")
-        print("Server: " .. session.server_url .. ", User: " .. session.username)
         local ok, err = pcall(function()
             api_client = client.new(session.server_url, session.username, nil, session.password_hash)
             local _, code = api_client:albums({limit = 1})
