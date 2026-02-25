@@ -522,7 +522,7 @@ local function create_main_window(app)
     end
 
     -- Stack Switcher Visibility Logic
-    function main_stack:on_notify:visible_child_name()
+    main_stack.on_notify['visible-child-name'] = function(self)
         local name = main_stack.visible_child_name
         if name == "album_detail" or name == "playlist_detail" then
             stack_switcher.visible = false
