@@ -111,15 +111,15 @@ if Gst_status then
         local bus = playbin:get_bus()
         bus:add_signal_watch()
         
-        -- Use connect method instead of .on property for compatibility
-        bus:connect('message::error', function(self, message)
+        -- Use GObject.signal_connect for broader compatibility
+        GObject.signal_connect(bus, 'message::error', function(self, message)
             local err, debug = message:parse_error()
             print("GStreamer Error: " .. tostring(err.message))
             if debug then print("Debug info: " .. debug) end
             playbin.state = Gst.State.NULL
         end)
         
-        bus:connect('message::eos', function(self, message)
+        GObject.signal_connect(bus, 'message::eos', function(self, message)
             print("Playback finished.")
             playbin.state = Gst.State.NULL
         end)
