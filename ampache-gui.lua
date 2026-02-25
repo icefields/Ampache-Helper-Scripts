@@ -24,6 +24,36 @@ script_path = script_path:sub(2) -- Remove '@'
 local script_dir = script_path:match("(.+)/") or ""
 package.path = script_dir .. "/?.lua;" .. package.path
 
+-- Path for storing credentials
+local config_path = script_dir .. "/ampache-config.lua"
+
+-- Helper function to save configuration
+local function save_config(url, user, pass)
+    local file = io.open(config_path, "w")
+    if file then
+        file:write(string.format("return { url = %q, user = %q, password = %q }", url, user, pass))
+        file:close()
+        print("Credentials saved.")
+    else
+        print("Failed to save credentials.")
+    end
+end
+
+-- Helper function to load configuration
+local function load_config()
+    local ok, data = pcall(dofile, config_path)
+    if ok and type(data) == "table" then
+        return data
+    end
+    return nil
+end
+
+-- Helper function to delete configuration
+local function delete_config()
+    os.remove(config_path)
+    print("Credentials deleted.")
+end
+
 -- Load LGI and dependencies with error handling
 local lgi_status, lgi = pcall(require, 'lgi')
 if not lgi_status then
@@ -135,6 +165,13 @@ local function create_main_window(app)
     }
     header_bar:pack_start(back_button)
 
+    -- Logout Button
+    local logout_button = Gtk.Button {
+        label = "Logout",
+        tooltip_text = "Clear saved credentials and return to login"
+    }
+    header_bar:pack_end(logout_button)
+
     -- Main Stack for navigation
     local stack = Gtk.Stack {}
     main_window.child = stack
@@ -207,6 +244,15 @@ local function create_main_window(app)
     -- ==========================================
     -- LOGIC & CALLBACKS
     -- ==========================================
+
+    -- Logout Button Callback
+    function logout_button:on_clicked()
+        print("Logging out...")
+        delete_config()
+        api_client = nil
+        main_window:destroy()
+        create_login_window(app)
+    end
 
     -- Back Button Callback
     function back_button:on_clicked()
@@ -296,8 +342,12 @@ local function create_main_window(app)
                 local row = Gtk.ListBoxRow {}
                 local hbox = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL, spacing = 10, margin = 5 }
                 
+                -- Format track number as integer
+                local track_num = tonumber(song.track)
+                local track_str = track_num and string.format("%d", track_num) or "-"
+                
                 local track_label = Gtk.Label { 
-                    label = tostring(song.track or "-"), 
+                    label = track_str, 
                     width_chars = 3, 
                     halign = Gtk.Align.END 
                 }
@@ -502,6 +552,7 @@ local function create_login_window(app)
         end)
 
         if ok then
+            save_config(url, user, pass)
             print("Login successful. Opening main window.")
             window:destroy()
             create_main_window(app)
@@ -516,6 +567,30 @@ local function create_login_window(app)
 end
 
 function App:on_activate()
+    -- Check for saved credentials
+    local config = load_config()
+    if config then
+        print("Found saved credentials. Attempting auto-login...")
+        local ok, _ = pcall(function()
+            api_client = client.new(config.url, config.user, config.password)
+            -- Verify connection
+            local _, code = api_client:albums({limit = 1})
+            if code ~= 200 then
+                error("Auto-login failed: Server returned code " .. code)
+            end
+        end)
+
+        if ok then
+            print("Auto-login successful.")
+            create_main_window(self)
+            return
+        else
+            print("Auto-login failed. Showing login window.")
+            api_client = nil
+            -- If auto-login fails, we proceed to show the login window
+        end
+    end
+
     create_login_window(self)
 end
 
