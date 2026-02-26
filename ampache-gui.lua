@@ -120,7 +120,12 @@ if Gst_status then
                 if progress_timeout_id then GLib.source_remove(progress_timeout_id) end
             elseif message.type == Gst.MessageType.EOS then
                 print("Playback finished.")
-                play_next_song()
+                -- Use idle_add to defer state changes to the main loop context
+                -- to avoid blocking the bus callback or causing deadlocks.
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, function()
+                    play_next_song()
+                    return false -- Remove the idle source
+                end)
             end
             return true -- Keep the watch active
         end)
