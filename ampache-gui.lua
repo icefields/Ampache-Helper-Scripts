@@ -151,6 +151,7 @@ local total_time_label = nil
 -- UI Elements for Navigation
 local main_stack = nil
 local stack_switcher = nil
+local back_button = nil
 local header_bar = nil
 local queue_listbox = nil -- Reference to update queue view
 
@@ -202,7 +203,7 @@ local function update_queue_view()
     for _, child in ipairs(children) do queue_listbox:remove(child) end
 
     if #playback_queue == 0 then
-        local empty_label = Gtk.Label { label = "Queue is empty.\nClick an album or playlist to start playback.", margin = 20 }
+        local empty_label = Gtk.Label { label = "Queue is empty.\nClick 'Play' on an album or playlist to start.", margin = 20 }
         queue_listbox:add(empty_label)
     else
         for i, song in ipairs(playback_queue) do
@@ -215,7 +216,7 @@ local function update_queue_view()
                 label = tostring(i), 
                 width_chars = 3, 
                 halign = Gtk.Align.END,
-                sensitive = not is_current -- Dim if not current? Or highlight current?
+                sensitive = not is_current
             }
             
             local title_text = song.title or "Unknown"
@@ -282,13 +283,13 @@ local function update_player_ui()
     if is_shuffle then
         shuffle_button.image = Gtk.Image { icon_name = "media-playlist-shuffle-symbolic" }
     else
-        shuffle_button.image = Gtk.Image { icon_name = "media-playlist-consecutive-symbolic" } -- Or a dimmed version
+        shuffle_button.image = Gtk.Image { icon_name = "media-playlist-consecutive-symbolic" }
     end
 
     if is_repeat then
         repeat_button.image = Gtk.Image { icon_name = "media-playlist-repeat-symbolic" }
     else
-        repeat_button.image = Gtk.Image { icon_name = "media-playlist-normal-symbolic" } -- Or a dimmed version
+        repeat_button.image = Gtk.Image { icon_name = "media-playlist-normal-symbolic" }
     end
     
     update_queue_view()
@@ -440,6 +441,14 @@ local function create_main_window(app)
     }
     main_window:set_titlebar(header_bar)
 
+    -- Back Button (initially hidden)
+    back_button = Gtk.Button {
+        image = Gtk.Image { icon_name = "go-previous-symbolic" },
+        visible = false,
+        tooltip_text = "Back"
+    }
+    header_bar:pack_start(back_button)
+
     -- Logout Button
     local logout_button = Gtk.Button {
         label = "Logout",
@@ -486,13 +495,13 @@ local function create_main_window(app)
     }
 
     shuffle_button = Gtk.Button {
-        image = Gtk.Image { icon_name = "media-playlist-consecutive-symbolic" }, -- Icon changes based on state
+        image = Gtk.Image { icon_name = "media-playlist-consecutive-symbolic" },
         always_show_image = true,
         tooltip_text = "Toggle Shuffle"
     }
 
     repeat_button = Gtk.Button {
-        image = Gtk.Image { icon_name = "media-playlist-normal-symbolic" }, -- Icon changes based on state
+        image = Gtk.Image { icon_name = "media-playlist-normal-symbolic" },
         always_show_image = true,
         tooltip_text = "Toggle Repeat"
     }
@@ -522,22 +531,12 @@ local function create_main_window(app)
     player_bar:pack_start(repeat_button)
     player_bar:pack_start(song_label)
     
-    -- Pack progress bar at the end or in a separate box?
-    -- ActionBar puts items at start/end. Let's put time/progress in a center box.
     local progress_box = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL, spacing = 5, hexpand = true }
     progress_box:pack_start(current_time_label, false, false, 0)
     progress_box:pack_start(progress_scale, true, true, 0)
     progress_box:pack_start(total_time_label, false, false, 0)
     
-    -- ActionBar doesn't have a 'center' area by default in Lua LGI easily, 
-    -- but we can pack it as a regular widget if we use a Box instead of ActionBar.
-    -- However, ActionBar is convenient. Let's just pack it at the end.
-    player_bar:pack_end(progress_box) -- This might not align correctly visually.
-    -- Actually, ActionBar packs start/end. Let's put controls at start, progress at end.
-    
-    -- Re-arranging:
-    -- Start: Prev, Play, Next, Shuffle, Repeat, Song Label
-    -- End: Time, Scale, Time
+    player_bar:pack_end(progress_box)
     
     -- Connect Player Buttons
     function prev_button:on_clicked() play_prev_song() end
@@ -559,7 +558,6 @@ local function create_main_window(app)
         local value = progress_scale.adjustment.value
         local position_ns = value * 1000000000
         
-        -- Seek to position
         playbin:seek(1.0, Gst.Format.TIME, Gst.SeekFlags.FLUSH + Gst.SeekFlags.KEY_UNIT, Gst.SeekType.SET, position_ns, Gst.SeekType.NONE, 0)
         return false
     end
@@ -583,7 +581,6 @@ local function create_main_window(app)
     local loading_playlists_label = Gtk.Label { label = "Loading playlists..." }
     playlist_flowbox:add(loading_playlists_label)
     
-    -- Map to store playlist data
     local playlist_map = {}
 
     -- ==========================================
@@ -605,7 +602,6 @@ local function create_main_window(app)
     local loading_albums_label = Gtk.Label { label = "Loading albums..." }
     album_flowbox:add(loading_albums_label)
     
-    -- Map to store album data
     local album_map = {}
 
     -- ==========================================
@@ -624,8 +620,83 @@ local function create_main_window(app)
     queue_scrolled.child = queue_listbox
     main_stack:add_titled(queue_scrolled, "queue", "Queue")
     
-    -- Initialize queue view
     update_queue_view()
+
+    -- ==========================================
+    -- PAGE: ALBUM DETAIL
+    -- ==========================================
+    local album_detail_box = Gtk.Box { orientation = Gtk.Orientation.VERTICAL, spacing = 10, margin = 10 }
+    
+    local album_header_box = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL, spacing = 15, margin_bottom = 10 }
+    local album_art_image = Gtk.Image { icon_name = 'media-optical', pixel_size = 150 }
+    
+    local album_info_box = Gtk.Box { orientation = Gtk.Orientation.VERTICAL, spacing = 5, valign = Gtk.Align.START }
+    local album_title_label = Gtk.Label { label = "Album Title", use_markup = true, halign = Gtk.Align.START, ellipsize = 'END' }
+    local album_artist_label = Gtk.Label { label = "Artist", halign = Gtk.Align.START, sensitive = false }
+    local album_year_label = Gtk.Label { label = "Year", halign = Gtk.Align.START, sensitive = false }
+    local album_extra_label = Gtk.Label { label = "", halign = Gtk.Align.START, sensitive = false }
+    
+    local play_album_button = Gtk.Button {
+        label = "Play Album",
+        image = Gtk.Image { icon_name = "media-playback-start-symbolic" },
+        always_show_image = true,
+        tooltip_text = "Play all songs in this album",
+        margin_top = 5
+    }
+
+    album_info_box:pack_start(album_title_label, false, false, 0)
+    album_info_box:pack_start(album_artist_label, false, false, 0)
+    album_info_box:pack_start(album_year_label, false, false, 0)
+    album_info_box:pack_start(album_extra_label, false, false, 0)
+    album_info_box:pack_start(play_album_button, false, false, 0)
+
+    album_header_box:pack_start(album_art_image, false, false, 0)
+    album_header_box:pack_start(album_info_box, true, true, 0)
+
+    local album_songs_scrolled = Gtk.ScrolledWindow {}
+    local album_songs_listbox = Gtk.ListBox {}
+    album_songs_scrolled.child = album_songs_listbox
+
+    album_detail_box:pack_start(album_header_box, false, false, 0)
+    album_detail_box:pack_start(album_songs_scrolled, true, true, 0)
+    
+    main_stack:add_titled(album_detail_box, "album_detail", "")
+
+    -- ==========================================
+    -- PAGE: PLAYLIST DETAIL
+    -- ==========================================
+    local playlist_detail_box = Gtk.Box { orientation = Gtk.Orientation.VERTICAL, spacing = 10, margin = 10 }
+    
+    local playlist_header_box = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL, spacing = 15, margin_bottom = 10 }
+    local playlist_art_image = Gtk.Image { icon_name = 'audio-x-generic', pixel_size = 150 }
+    
+    local playlist_info_box = Gtk.Box { orientation = Gtk.Orientation.VERTICAL, spacing = 5, valign = Gtk.Align.START }
+    local playlist_title_label = Gtk.Label { label = "Playlist Title", use_markup = true, halign = Gtk.Align.START, ellipsize = 'END' }
+    local playlist_extra_label = Gtk.Label { label = "", halign = Gtk.Align.START, sensitive = false }
+
+    local play_playlist_button = Gtk.Button {
+        label = "Play Playlist",
+        image = Gtk.Image { icon_name = "media-playback-start-symbolic" },
+        always_show_image = true,
+        tooltip_text = "Play all songs in this playlist",
+        margin_top = 5
+    }
+
+    playlist_info_box:pack_start(playlist_title_label, false, false, 0)
+    playlist_info_box:pack_start(playlist_extra_label, false, false, 0)
+    playlist_info_box:pack_start(play_playlist_button, false, false, 0)
+
+    playlist_header_box:pack_start(playlist_art_image, false, false, 0)
+    playlist_header_box:pack_start(playlist_info_box, true, true, 0)
+
+    local playlist_songs_scrolled = Gtk.ScrolledWindow {}
+    local playlist_songs_listbox = Gtk.ListBox {}
+    playlist_songs_scrolled.child = playlist_songs_listbox
+
+    playlist_detail_box:pack_start(playlist_header_box, false, false, 0)
+    playlist_detail_box:pack_start(playlist_songs_scrolled, true, true, 0)
+    
+    main_stack:add_titled(playlist_detail_box, "playlist_detail", "")
 
     -- ==========================================
     -- LOGIC & CALLBACKS
@@ -642,44 +713,234 @@ local function create_main_window(app)
         create_login_window(app)
     end
 
-    -- Function to fetch and play album
-    local function fetch_and_play_album(album)
-        header_bar.title = "Loading " .. (album.name or "Album") .. "..."
+    -- Back Button Callback
+    function back_button:on_clicked()
+        local current = main_stack.visible_child_name
+        if current == "album_detail" then
+            main_stack.visible_child_name = "albums"
+            local title_val = GObject.Value(GObject.Type.STRING, "")
+            Gtk.Container.child_set_property(main_stack, album_detail_box, "title", title_val)
+        elseif current == "playlist_detail" then
+            main_stack.visible_child_name = "playlists"
+            local title_val = GObject.Value(GObject.Type.STRING, "")
+            Gtk.Container.child_set_property(main_stack, playlist_detail_box, "title", title_val)
+        end
+        header_bar.title = "Ampache"
+    end
+
+    -- Stack Switcher Visibility Logic
+    main_stack.on_notify['visible-child-name'] = function(self)
+        local name = main_stack.visible_child_name
+        if name == "album_detail" or name == "playlist_detail" then
+            back_button.visible = true
+        else
+            back_button.visible = false
+            header_bar.title = "Ampache"
+        end
+    end
+
+    -- Function to load album detail
+    local function load_album_detail(album)
+        print("Loading album detail: " .. tostring(album.name))
         
+        -- Clear previous songs
+        local children = album_songs_listbox:get_children()
+        for _, child in ipairs(children) do album_songs_listbox:remove(child) end
+
+        header_bar.title = album.name or "Album"
+        local title_val = GObject.Value(GObject.Type.STRING, album.name or "")
+        Gtk.Container.child_set_property(main_stack, album_detail_box, "title", title_val)
+        
+        album_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(album.name or "Unknown") .. "</span>"
+        album_artist_label.label = "by " .. escape_markup(album.artist and album.artist.name or "Unknown Artist")
+        
+        local year_str = "N/A"
+        if album.year then
+            local y = tonumber(album.year)
+            if y then year_str = string.format("%d", y) else year_str = tostring(album.year) end
+        end
+        album_year_label.label = "Year: " .. year_str
+        
+        local extra_text = ""
+        if album.playcount then extra_text = extra_text .. "Plays: " .. album.playcount .. "  " end
+        if album.rating then
+            local r = album.rating
+            if type(r) == "string" or type(r) == "number" then extra_text = extra_text .. "Rating: " .. r .. "  " end
+        end
+        album_extra_label.label = extra_text
+
+        -- Load Art
+        local img_path = nil
+        if album.art and album.has_art then
+            local temp_dir = "temp_images"
+            if not lfs.attributes(temp_dir) then lfs.mkdir(temp_dir) end
+            local filename = temp_dir .. "/" .. (album.id or os.time()) .. ".jpg"
+            if not lfs.attributes(filename) then pcall(download_image, album.art, filename) end
+            if lfs.attributes(filename) then img_path = filename end
+        end
+
+        if img_path then
+            local ok, pixbuf = pcall(GdkPixbuf.Pixbuf.new_from_file_at_size, img_path, 150, 150)
+            if ok then album_art_image.pixbuf = pixbuf else album_art_image.icon_name = 'media-optical' end
+        else
+            album_art_image.icon_name = 'media-optical'
+        end
+
+        local loading_song_label = Gtk.Label { label = "Loading songs...", margin = 10 }
+        album_songs_listbox:add(loading_song_label)
+        main_stack.visible_child_name = "album_detail"
+        main_window:show_all()
+
         GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 0, function()
             local _, code, _, _, _, data = api_client:request('album_songs', { filter = album.id })
             
+            local children = album_songs_listbox:get_children()
+            for _, child in ipairs(children) do album_songs_listbox:remove(child) end
+
             if code ~= 200 or not data or not data.song then
-                header_bar.title = "Ampache"
-                print("Error loading album songs.")
+                local err_label = Gtk.Label { label = "Error loading songs or album is empty.", margin = 10 }
+                album_songs_listbox:add(err_label)
+                main_window:show_all()
                 return false
             end
 
-            playback_queue = data.song
-            play_song_at_index(1)
-            main_stack.visible_child_name = "queue"
-            header_bar.title = "Ampache"
+            local album_songs = data.song
+
+            function play_album_button:on_clicked()
+                if not playbin then return end
+                playback_queue = album_songs
+                play_song_at_index(1)
+                main_stack.visible_child_name = "queue"
+            end
+
+            for _, song in ipairs(album_songs) do
+                local row = Gtk.ListBoxRow {}
+                local hbox = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL, spacing = 10, margin = 5 }
+                
+                local track_num = tonumber(song.track)
+                local track_str = track_num and string.format("%d", track_num) or "-"
+                
+                local track_label = Gtk.Label { label = track_str, width_chars = 3, halign = Gtk.Align.END }
+                local title_label = Gtk.Label { label = song.title or "Unknown", halign = Gtk.Align.START, ellipsize = 'END' }
+                local duration_label = Gtk.Label { label = format_time(song.time), halign = Gtk.Align.END }
+
+                local play_button = Gtk.Button {
+                    image = Gtk.Image { icon_name = "media-playback-start-symbolic" },
+                    always_show_image = true,
+                    tooltip_text = "Play " .. (song.title or "song")
+                }
+
+                function play_button:on_clicked()
+                    if not playbin then return end
+                    playback_queue = { song }
+                    play_song_at_index(1)
+                    main_stack.visible_child_name = "queue"
+                end
+
+                hbox:pack_start(track_label, false, false, 0)
+                hbox:pack_start(title_label, true, true, 0)
+                hbox:pack_start(duration_label, false, false, 0)
+                hbox:pack_start(play_button, false, false, 0)
+                
+                row:add(hbox)
+                album_songs_listbox:add(row)
+            end
+            
+            main_window:show_all()
             return false
         end)
     end
 
-    -- Function to fetch and play playlist
-    local function fetch_and_play_playlist(playlist)
-        header_bar.title = "Loading " .. (playlist.name or "Playlist") .. "..."
+    -- Function to load playlist detail
+    local function load_playlist_detail(playlist)
+        print("Loading playlist detail: " .. tostring(playlist.name))
         
+        -- Clear previous songs
+        local children = playlist_songs_listbox:get_children()
+        for _, child in ipairs(children) do playlist_songs_listbox:remove(child) end
+
+        header_bar.title = playlist.name or "Playlist"
+        local title_val = GObject.Value(GObject.Type.STRING, playlist.name or "")
+        Gtk.Container.child_set_property(main_stack, playlist_detail_box, "title", title_val)
+        
+        playlist_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(playlist.name or "Unknown") .. "</span>"
+        playlist_extra_label.label = "Total items: " .. (playlist.items or "N/A")
+
+        -- Load Art
+        local img_path = nil
+        if playlist.art then
+            local temp_dir = "temp_images"
+            if not lfs.attributes(temp_dir) then lfs.mkdir(temp_dir) end
+            local filename = temp_dir .. "/pl_" .. (playlist.id or os.time()) .. ".jpg"
+            if not lfs.attributes(filename) then pcall(download_image, playlist.art, filename) end
+            if lfs.attributes(filename) then img_path = filename end
+        end
+
+        if img_path then
+            local ok, pixbuf = pcall(GdkPixbuf.Pixbuf.new_from_file_at_size, img_path, 150, 150)
+            if ok then playlist_art_image.pixbuf = pixbuf else playlist_art_image.icon_name = 'audio-x-generic' end
+        else
+            playlist_art_image.icon_name = 'audio-x-generic'
+        end
+
+        local loading_song_label = Gtk.Label { label = "Loading songs...", margin = 10 }
+        playlist_songs_listbox:add(loading_song_label)
+        main_stack.visible_child_name = "playlist_detail"
+        main_window:show_all()
+
         GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 0, function()
             local _, code, _, _, _, data = api_client:request('playlist_songs', { filter = playlist.id })
             
+            local children = playlist_songs_listbox:get_children()
+            for _, child in ipairs(children) do playlist_songs_listbox:remove(child) end
+
             if code ~= 200 or not data or not data.song then
-                header_bar.title = "Ampache"
-                print("Error loading playlist songs.")
+                local err_label = Gtk.Label { label = "Error loading songs or playlist is empty.", margin = 10 }
+                playlist_songs_listbox:add(err_label)
+                main_window:show_all()
                 return false
             end
 
-            playback_queue = data.song
-            play_song_at_index(1)
-            main_stack.visible_child_name = "queue"
-            header_bar.title = "Ampache"
+            local playlist_songs = data.song
+
+            function play_playlist_button:on_clicked()
+                if not playbin then return end
+                playback_queue = playlist_songs
+                play_song_at_index(1)
+                main_stack.visible_child_name = "queue"
+            end
+
+            for i, song in ipairs(playlist_songs) do
+                local row = Gtk.ListBoxRow {}
+                local hbox = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL, spacing = 10, margin = 5 }
+                
+                local num_label = Gtk.Label { label = tostring(i), width_chars = 3, halign = Gtk.Align.END }
+                local title_label = Gtk.Label { label = song.title or "Unknown", halign = Gtk.Align.START, ellipsize = 'END' }
+                local duration_label = Gtk.Label { label = format_time(song.time), halign = Gtk.Align.END }
+
+                local play_button = Gtk.Button {
+                    image = Gtk.Image { icon_name = "media-playback-start-symbolic" },
+                    always_show_image = true,
+                    tooltip_text = "Play " .. (song.title or "song")
+                }
+
+                function play_button:on_clicked()
+                    if not playbin then return end
+                    playback_queue = { song }
+                    play_song_at_index(1)
+                    main_stack.visible_child_name = "queue"
+                end
+
+                hbox:pack_start(num_label, false, false, 0)
+                hbox:pack_start(title_label, true, true, 0)
+                hbox:pack_start(duration_label, false, false, 0)
+                hbox:pack_start(play_button, false, false, 0)
+                
+                row:add(hbox)
+                playlist_songs_listbox:add(row)
+            end
+            
+            main_window:show_all()
             return false
         end)
     end
@@ -687,13 +948,13 @@ local function create_main_window(app)
     -- Album Click Handler
     function album_flowbox:on_child_activated(child)
         local album = album_map[child]
-        if album then fetch_and_play_album(album) end
+        if album then load_album_detail(album) end
     end
 
     -- Playlist Click Handler
     function playlist_flowbox:on_child_activated(child)
         local playlist = playlist_map[child]
-        if playlist then fetch_and_play_playlist(playlist) end
+        if playlist then load_playlist_detail(playlist) end
     end
 
     -- Load Albums
