@@ -94,6 +94,13 @@ local is_repeat = false
 local progress_timeout_id = nil
 local is_seeking = false
 
+-- Forward declarations for circular dependencies and callbacks
+local update_queue_view
+local update_player_ui
+local play_song_at_index
+local play_next_song
+local play_prev_song
+
 if Gst_status then
     print("GStreamer loaded successfully.")
     Gst.init(nil)
@@ -193,11 +200,6 @@ local function escape_markup(text)
     if not text then return "" end
     return text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 end
-
--- Forward declarations for circular dependencies
-local update_queue_view
-local update_player_ui
-local play_song_at_index
 
 -- Function to update the Queue View UI
 function update_queue_view()
