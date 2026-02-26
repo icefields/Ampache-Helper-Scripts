@@ -194,8 +194,13 @@ local function escape_markup(text)
     return text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 end
 
+-- Forward declarations for circular dependencies
+local update_queue_view
+local update_player_ui
+local play_song_at_index
+
 -- Function to update the Queue View UI
-local function update_queue_view()
+function update_queue_view()
     if not queue_listbox then return end
     
     -- Clear existing items
@@ -258,7 +263,7 @@ local function update_queue_view()
 end
 
 -- Playback Logic
-local function update_player_ui()
+function update_player_ui()
     if not playbin then return end
     
     local current_song = playback_queue[current_song_index]
@@ -309,7 +314,7 @@ local function update_progress_bar()
     return true -- Continue timeout
 end
 
-local function play_song_at_index(index)
+function play_song_at_index(index)
     if not playbin or index < 1 or index > #playback_queue then 
         if playbin then playbin.state = Gst.State.NULL end
         is_playing = false
