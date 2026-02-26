@@ -41,6 +41,7 @@ local function prepare_args(self, action, args)
     args.server_url = self.server_url
     args.username = self.username
     args.password = self.password
+    args.password_hash = self.password_hash -- Pass hash for auto-login support
     args.auth = self.auth -- Pass auth token if available
     return args
 end

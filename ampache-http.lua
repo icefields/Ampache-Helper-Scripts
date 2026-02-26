@@ -128,7 +128,7 @@ local function buildQueryString(args, authToken, methodDef)
     -- 3. Fallback: Add any other arguments passed that might not be in definition (flexibility)
     for argKey, val in pairs(args) do
         -- Skip internal args
-        if argKey ~= "action" and argKey ~= "server_url" and argKey ~= "username" and argKey ~= "password" and argKey ~= "isJsonOutput" and argKey ~= "isPrintUrl" then
+        if argKey ~= "action" and argKey ~= "server_url" and argKey ~= "username" and argKey ~= "password" and argKey ~= "password_hash" and argKey ~= "isJsonOutput" and argKey ~= "isPrintUrl" then
             local apiKey = paramMapping[argKey] or argKey
             -- Check if we already added it
             local alreadyAdded = false
@@ -246,7 +246,7 @@ local function isTokenExpired(expireStr)
     return nowStr >= expireStr:sub(1, 19) -- Compare up to seconds
 end
 
-local function authToken(serverUrl, username, password)
+local function authToken(serverUrl, username, password, password_hash)
     local token, expire = getStoredToken()
     
     if token and not isTokenExpired(expire) then
@@ -254,7 +254,7 @@ local function authToken(serverUrl, username, password)
     end
     
     -- Token missing or expired, perform handshake
-    local jsonResp = handshake.handshake(serverUrl, username, password)
+    local jsonResp = handshake.handshake(serverUrl, username, password, password_hash)
     if jsonResp and jsonResp.auth then
         storeToken(jsonResp.auth, jsonResp.session_expire)
         return jsonResp.auth
@@ -274,8 +274,8 @@ local function makeRequest(args, printUrl)
     if not args.username then
         error("Missing required argument: username")
     end
-    if not args.password then
-        error("Missing required argument: password")
+    if not args.password and not args.password_hash then
+        error("Missing required argument: password or password_hash")
     end
     
     -- Validate server URL format
@@ -302,7 +302,7 @@ local function makeRequest(args, printUrl)
         io.stderr:write("Warning: Unknown API method '" .. args.action .. "'\n")
     end
     
-    local auth = authToken(args.server_url, args.username, args.password)
+    local auth = authToken(args.server_url, args.username, args.password, args.password_hash)
     
     -- Build URL
     local queryString = buildQueryString(args, auth, methodDef)
