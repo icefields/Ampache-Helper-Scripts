@@ -623,7 +623,7 @@ local function create_main_window(app)
     update_queue_view()
 
     -- ==========================================
-    -- PAGE: ALBUM DETAIL
+    -- PAGE: ALBUM DETAIL (Hidden from Tabs)
     -- ==========================================
     local album_detail_box = Gtk.Box { orientation = Gtk.Orientation.VERTICAL, spacing = 10, margin = 10 }
     
@@ -660,10 +660,11 @@ local function create_main_window(app)
     album_detail_box:pack_start(album_header_box, false, false, 0)
     album_detail_box:pack_start(album_songs_scrolled, true, true, 0)
     
-    main_stack:add_titled(album_detail_box, "album_detail", "")
+    -- Add as named child (no title) so it doesn't appear in StackSwitcher
+    main_stack:add_named(album_detail_box, "album_detail")
 
     -- ==========================================
-    -- PAGE: PLAYLIST DETAIL
+    -- PAGE: PLAYLIST DETAIL (Hidden from Tabs)
     -- ==========================================
     local playlist_detail_box = Gtk.Box { orientation = Gtk.Orientation.VERTICAL, spacing = 10, margin = 10 }
     
@@ -696,7 +697,8 @@ local function create_main_window(app)
     playlist_detail_box:pack_start(playlist_header_box, false, false, 0)
     playlist_detail_box:pack_start(playlist_songs_scrolled, true, true, 0)
     
-    main_stack:add_titled(playlist_detail_box, "playlist_detail", "")
+    -- Add as named child (no title) so it doesn't appear in StackSwitcher
+    main_stack:add_named(playlist_detail_box, "playlist_detail")
 
     -- ==========================================
     -- LOGIC & CALLBACKS
@@ -718,12 +720,8 @@ local function create_main_window(app)
         local current = main_stack.visible_child_name
         if current == "album_detail" then
             main_stack.visible_child_name = "albums"
-            local title_val = GObject.Value(GObject.Type.STRING, "")
-            Gtk.Container.child_set_property(main_stack, album_detail_box, "title", title_val)
         elseif current == "playlist_detail" then
             main_stack.visible_child_name = "playlists"
-            local title_val = GObject.Value(GObject.Type.STRING, "")
-            Gtk.Container.child_set_property(main_stack, playlist_detail_box, "title", title_val)
         end
         header_bar.title = "Ampache"
     end
@@ -748,8 +746,6 @@ local function create_main_window(app)
         for _, child in ipairs(children) do album_songs_listbox:remove(child) end
 
         header_bar.title = album.name or "Album"
-        local title_val = GObject.Value(GObject.Type.STRING, album.name or "")
-        Gtk.Container.child_set_property(main_stack, album_detail_box, "title", title_val)
         
         album_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(album.name or "Unknown") .. "</span>"
         album_artist_label.label = "by " .. escape_markup(album.artist and album.artist.name or "Unknown Artist")
@@ -860,8 +856,6 @@ local function create_main_window(app)
         for _, child in ipairs(children) do playlist_songs_listbox:remove(child) end
 
         header_bar.title = playlist.name or "Playlist"
-        local title_val = GObject.Value(GObject.Type.STRING, playlist.name or "")
-        Gtk.Container.child_set_property(main_stack, playlist_detail_box, "title", title_val)
         
         playlist_title_label.label = "<span size='x-large' weight='bold'>" .. escape_markup(playlist.name or "Unknown") .. "</span>"
         playlist_extra_label.label = "Total items: " .. (playlist.items or "N/A")
@@ -982,9 +976,13 @@ local function create_main_window(app)
             local image_widget
             if img_path then
                 local ok, pixbuf = pcall(GdkPixbuf.Pixbuf.new_from_file_at_size, img_path, 150, 150)
-                if ok then image_widget = Gtk.Image { pixbuf = pixbuf } else image_widget = Gtk.Image { icon_name = 'media-optical', pixel_size = 150 } end
+                if ok then 
+                    image_widget = Gtk.Image { pixbuf = pixbuf, width_request = 150, height_request = 150 } 
+                else 
+                    image_widget = Gtk.Image { icon_name = 'media-optical', pixel_size = 150, width_request = 150, height_request = 150 } 
+                end
             else
-                image_widget = Gtk.Image { icon_name = 'media-optical', pixel_size = 150 }
+                image_widget = Gtk.Image { icon_name = 'media-optical', pixel_size = 150, width_request = 150, height_request = 150 }
             end
 
             local name_label = Gtk.Label { label = album.name or "Unknown", ellipsize = 'END', max_width_chars = 20, tooltip_text = album.name }
@@ -1051,9 +1049,13 @@ local function create_main_window(app)
             local image_widget
             if img_path then
                 local ok, pixbuf = pcall(GdkPixbuf.Pixbuf.new_from_file_at_size, img_path, 150, 150)
-                if ok then image_widget = Gtk.Image { pixbuf = pixbuf } else image_widget = Gtk.Image { icon_name = 'audio-x-generic', pixel_size = 150 } end
+                if ok then 
+                    image_widget = Gtk.Image { pixbuf = pixbuf, width_request = 150, height_request = 150 } 
+                else 
+                    image_widget = Gtk.Image { icon_name = 'audio-x-generic', pixel_size = 150, width_request = 150, height_request = 150 } 
+                end
             else
-                image_widget = Gtk.Image { icon_name = 'audio-x-generic', pixel_size = 150 }
+                image_widget = Gtk.Image { icon_name = 'audio-x-generic', pixel_size = 150, width_request = 150, height_request = 150 }
             end
             
             local name_label = Gtk.Label { label = playlist.name or "Unknown", ellipsize = 'END', max_width_chars = 20, tooltip_text = playlist.name }
