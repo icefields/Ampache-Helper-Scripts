@@ -28,6 +28,15 @@ local script_path = info.source:match("^@(.+)") or info.source
 local script_dir = script_path:match("^(.*[\\/])") or "."
 package.path = script_dir .. "/?.lua;" .. package.path
 
+-- Change working directory to the script's directory.
+-- This ensures that relative paths for the token file and database
+-- are consistent regardless of where the script is launched from.
+print("Changing working directory to: " .. script_dir)
+local chdir_ok, chdir_err = lfs.chdir(script_dir)
+if not chdir_ok then
+    print("Warning: Failed to change working directory: " .. chdir_err)
+end
+
 -- Load DB module
 local db = require("ampache-db")
 
