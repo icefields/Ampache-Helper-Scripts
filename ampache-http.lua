@@ -76,14 +76,12 @@ local function makeRequestFromUrl(url)
             if code == 200 then
                 if response_body and #response_body > 0 then
                     json_response = table.concat(response_body)
-                    
-                    
                     local ok, decoded = pcall(cjson.decode, json_response)
                     if ok then
                         data = decoded
 
                         -- The server can be returning an error json despite of the 200 response
-                        if data.error ~= nil then 
+                        if data.error ~= nil then
                             return nil, data.error.errorCode, {}, "Error Returned by server", json_response, data
                         end
 
@@ -102,7 +100,7 @@ end
 function authToken(serverUrl, username, password)
     local filename = "token"
     local token = nil
-    if ampache.isFileEmpty(filename) then 
+    if ampache.isFileEmpty(filename) then
         token = handshake.getAuthToken(serverUrl, username, password)
         ampache.writeFile(filename, token)
     else
